@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import SessionFrame from '../components/SessionFrame.astro';
+import { type Config } from '../lib/sessionStore';
 import { actions } from 'astro:actions';
 
 // Get session ID from URL parameter or generate a random one
@@ -15,7 +16,7 @@ if (error) {
 	return new Response('Failed to get session', { status: 500 });
 }
 sessionId = data.sessionId;
-const config = data.config;
+const config: Config = data.session;
 ---
 
 <Layout>

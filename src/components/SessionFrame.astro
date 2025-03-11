@@ -1,11 +1,11 @@
 ---
 // SessionFrame component that renders an iframe based on session config
+import { type Config, type Session } from '../lib/sessionStore';
+import { actions } from "astro:actions";
 
 interface Props {
   sessionId: string;
-  config: {
-    iframeUrl: string;
-  };
+  config: Config;
 }
 
 const { sessionId, config } = Astro.props;
@@ -13,16 +13,75 @@ const { iframeUrl } = config;
 ---
 
 <div class="session-container flex flex-col w-full h-screen">
-  <div class="session-info p-2 bg-gray-100 border-b border-gray-300">
+  <div class="session-info p-2 bg-gray-100 border-b border-gray-300 flex justify-between">
     <p>Session ID: <span id="session-id">{sessionId}</span></p>
+    <p>Status: <span id="active-status" class="font-semibold text-green-600">Active</span></p>
   </div>
-  <div class="iframe-container flex-grow relative">
+  <div id="iframe-container" 
+       class="iframe-container flex-grow relative"
+       >
     <iframe 
+      id="content-frame"
       src={iframeUrl} 
       title="Session Content"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
+      allow="clipboard-read;clipboard-write;geolocation;camera;microphone;midi;usb;serial;xr-spatial-tracking;web-share;ambient-light-sensor;window-management"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-downloads allow-popups allow-popups-to-escape-sandbox"
+      allowfullscreen="true"
       class="absolute top-0 left-0 w-full h-full border-none">
     </iframe>
   </div>
 </div>
+
+<script>
+  import { type Config, type Session } from '../lib/sessionStore';
+  import { actions } from 'astro:actions';
+  import { z } from 'astro:schema';
+
+  const sessionId = z.string().parse(document.getElementById('session-id')?.innerText);
+  
+  function sendHeartbeat() {
+    actions.heartbeat({ sessionId })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to send heartbeat:', error);
+          return;
+        }
+        if (data?.session) compareConfigToDOM(data.session as Session);
+      })
+  }
+
+  function markInactive() {
+    actions.markInactive({ sessionId });
+  }
+  
+  // Send heartbeat periodically (every 30 seconds)
+  const heartbeatInterval = setInterval(sendHeartbeat, 15000);
+  
+  // Send initial heartbeat
+  sendHeartbeat();
+  
+  // Handle tab closing or page navigation
+  window.addEventListener('beforeunload', () => {
+    clearInterval(heartbeatInterval);
+    markInactive();
+  });
+  
+  // Handle page visibility change (minimized, tab switching)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      // User came back, send a heartbeat
+      sendHeartbeat();
+    }
+  });
+
+  function compareConfigToDOM(config: Config) {
+    const contentFrame = document.getElementById('content-frame') as HTMLIFrameElement | null;
+    const iframeUrl = contentFrame?.src;
+    if (iframeUrl !== config.iframeUrl) {
+      if (contentFrame) contentFrame.src = config.iframeUrl;
+      console.log("[Client] Updated iframe URL to:", config.iframeUrl);
+    } else {
+      console.log("[Client] No changes detected");
+    }
+  }
+</script>
