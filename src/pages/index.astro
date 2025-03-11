@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import SessionFrame from '../components/SessionFrame.astro';
+import SessionFrame from '../components/SessionFrame';
 import { type Config } from '../lib/sessionStore';
 import { actions } from 'astro:actions';
 
@@ -20,7 +20,7 @@ const config: Config = data.session;
 ---
 
 <Layout>
-  <SessionFrame sessionId={sessionId} config={config} />
+  <SessionFrame sessionId={sessionId} config={config} client:load />
   
   <script define:vars={{ sessionId }}>
     // Store session ID in localStorage for persistence

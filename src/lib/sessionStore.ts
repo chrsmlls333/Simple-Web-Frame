@@ -122,7 +122,7 @@ export const sessionStore = {
 // Subscribe to store changes for logging
 $sessions.listen((state, prevState, changed) => {
   if (changed && state[changed]) {
-    console.log(`[SessionStore] Session '${changed}' updated:`, state[changed]);
+    // console.log(`[SessionStore] Session '${changed}' updated:`, state[changed]);
     
     // Check if this was a config change
     const prev = prevState[changed];
@@ -134,6 +134,9 @@ $sessions.listen((state, prevState, changed) => {
           from: prev.iframeUrl,
           to: current.iframeUrl
         });
+      }
+      if (prev.isActive !== current.isActive) {
+        console.log(`[SessionStore] Session ${changed} is now ${current.isActive ? 'active' : 'inactive'}!`);
       }
     }
   } else if (changed && !state[changed]) {
