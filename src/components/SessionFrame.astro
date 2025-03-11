@@ -1,0 +1,28 @@
+---
+// SessionFrame component that renders an iframe based on session config
+
+interface Props {
+  sessionId: string;
+  config: {
+    iframeUrl: string;
+  };
+}
+
+const { sessionId, config } = Astro.props;
+const { iframeUrl } = config;
+---
+
+<div class="session-container flex flex-col w-full h-screen">
+  <div class="session-info p-2 bg-gray-100 border-b border-gray-300">
+    <p>Session ID: <span id="session-id">{sessionId}</span></p>
+  </div>
+  <div class="iframe-container flex-grow relative">
+    <iframe 
+      src={iframeUrl} 
+      title="Session Content"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+      class="absolute top-0 left-0 w-full h-full border-none">
+    </iframe>
+  </div>
+</div>

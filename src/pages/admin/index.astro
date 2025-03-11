@@ -1,0 +1,66 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+import { actions } from 'astro:actions';
+
+// Simple admin authentication (would be more robust in real app)
+const isAuthenticated = true; // Replace with actual auth logic
+
+// Mock active sessions
+import { sessionStore } from '../../lib/sessionStore';
+const activeSessions = Object.entries(sessionStore.getAll())
+
+// Get result of form submission
+const updateResult = Astro.getActionResult(actions.updateSessionForm);
+---
+
+<Layout>
+  <div class="admin-panel max-w-3xl mx-auto p-5">
+    <h1 class="text-2xl font-bold mb-4">Session Management</h1>
+    
+    {isAuthenticated ? (
+
+      <div class="session-manager bg-gray-100 p-5 rounded-lg">
+        <h2 class="text-xl font-semibold mb-3">Update Session Configuration</h2>
+        {activeSessions.map(([id, config]) => (
+          <div class="session-card bg-white p-4 rounded-lg shadow-md mb-4">
+            <form id={`form-update-${id}`} method="POST" action={actions.updateSessionForm} class="space-y-4" >
+              <div class="form-group">
+                <label for={`sessionId-${id}`} class="block mb-1">Session ID:</label>
+                <input type="text" id={`sessionId-${id}`} name="sessionId" class="w-full p-2 border rounded bg-gray-200" value={id} readonly />
+              </div>
+              <div class="form-group">
+                <label for={`iframeUrl-${id}`} class="block mb-1">iframe URL:</label>
+                <input type="url" id={`iframeUrl-${id}`} name="iframeUrl" class="w-full p-2 border rounded" value={config.iframeUrl} required />
+              </div>
+              <button type="submit" class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">
+                Update Session
+              </button>
+            </form>
+            <form id={`form-delete-${id}`} method="POST" action={actions.deleteSessionForm} class="space-y-4">
+              <input type="hidden" name="sessionId" value={id} />
+              <button type="submit" class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">
+                Delete Session
+              </button>
+            </form>
+          </div>
+        ))}
+        {updateResult?.error && (
+          <div class={"update-result p-3 rounded bg-red-100 text-red-700"}>
+            <pre>{updateResult.error}</pre>
+          </div>
+        )}
+        {updateResult && !updateResult.error && (
+          <div class={"update-result p-3 rounded bg-green-100 text-green-700"}>
+            <p>Updated successfully!</p>
+          </div>
+        )}
+
+      </div>
+    ) : (
+      <div class="auth-required p-5 bg-red-100 text-red-700 rounded">
+        <p>Authentication required to access admin panel.</p>
+      </div>
+    )}
+  </div>
+</Layout>

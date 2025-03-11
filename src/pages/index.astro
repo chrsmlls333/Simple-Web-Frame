@@ -1,11 +1,37 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import SessionFrame from '../components/SessionFrame.astro';
+import { actions } from 'astro:actions';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+// Get session ID from URL parameter or generate a random one
+const urlParams = new URL(Astro.request.url).searchParams;
+let sessionId = urlParams.get('sessionId');
+
+// Use the server action to get or create a session
+const { data, error } = await Astro.callAction( actions.getSession, {
+  sessionId: sessionId || undefined
+});
+if (error) {
+	return new Response('Failed to get session', { status: 500 });
+}
+sessionId = data.sessionId;
+const config = data.config;
 ---
 
 <Layout>
-	<Welcome />
+  <SessionFrame sessionId={sessionId} config={config} />
+  
+  <script define:vars={{ sessionId }}>
+    // Store session ID in localStorage for persistence
+    localStorage.setItem('currentSessionId', sessionId);
+    
+    // Update URL to include session ID without page reload
+    const url = new URL(window.location);
+    if (!url.searchParams.has('sessionId')) {
+      url.searchParams.set('sessionId', sessionId);
+      window.history.replaceState({}, '', url);
+    }
+
+    console.log(`[Client] Using session: ${sessionId}`);
+  </script>
 </Layout>
