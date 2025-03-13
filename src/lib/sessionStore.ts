@@ -5,7 +5,7 @@ import { urlHistory } from './urlHistoryStore';
 // ====================================================================================
 
 // Schema definitions
-export const SessionIdSchema = z.string();
+export const SessionIdSchema = z.string().uuid();
 export type SessionId = z.infer<typeof SessionIdSchema>;
 export const ConfigSchema = z.object({
   iframeUrl: z.string().url(),

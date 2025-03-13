@@ -132,16 +132,29 @@ const SessionCard: React.FC<SessionCardProps> = ({
           >
             Open
           </button>
-          <button
-            type="button"
-            disabled={isActive}
-            className={cn([
-              "bg-red-600 text-white py-2 px-4 text-sm rounded hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed",
-            ])}
-            onClick={onDelete}
-          >
-            Discard
-          </button>
+          {!isActive && (
+            <button
+              type="button"
+              disabled={isActive}
+              className={cn([
+                "bg-red-600 text-white py-2 px-4 text-sm rounded hover:bg-red-700 disabled:bg-red-300 disabled:border disabled:border-red-600 disabled:cursor-not-allowed",
+              ])}
+              onClick={onDelete}
+            >
+              Discard
+            </button>
+          )}
+          {isActive && (
+            <button
+              type="button"
+              className="bg-amber-600 text-white py-2 px-4 text-sm rounded hover:bg-amber-700"
+              onClick={() => {
+                actions.createTask({ sessionId: id, task: "refresh" });
+              }}
+            >
+              Request Refresh
+            </button>
+          )}
         </div>
       </form>
     </div>

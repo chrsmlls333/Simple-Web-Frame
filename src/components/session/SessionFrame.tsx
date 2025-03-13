@@ -4,6 +4,7 @@ import {
   type Config,
   type SessionId,
 } from "../../lib/sessionStore";
+import type { Task } from "../../lib/taskQueue";
 import { actions } from "astro:actions";
 import { cn, getReadableUUID } from "../../lib/styles";
 import { useMouseActivity } from "../useMouseActivity";
@@ -39,19 +40,57 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
   config: initialConfig,
 }) => {
   const [config, setConfig] = useState(initialConfig);
-  const [connectionStatus, setConnectionStatus] =
-    useState<keyof typeof connectionStatusOptions>("active");
+
+  const contentFrameRef = useRef<HTMLIFrameElement>(null);
   const [iframeStatus, setIframeStatus] =
     useState<(typeof iframeStatusOptions)[number]>("loading");
-  const contentFrameRef = useRef<HTMLIFrameElement>(null);
-  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
+
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval>>(null);
+  const [connectionStatus, setConnectionStatus] =
+    useState<keyof typeof connectionStatusOptions>("active");
 
   const { isActive: isMouseMoving } = useMouseActivity();
 
   const urlIsDefault = config.iframeUrl === DEFAULT_IFRAME_URL;
   const id = getReadableUUID(sessionId);
+
+  // Process a task based on its type
+  const processTask = (task: Task) => {
+    console.log(`[TaskRunner] Processing task: ${task.task}`, task);
+
+    switch (task.task) {
+      case "refresh":
+        if (contentFrameRef.current) {
+          setIframeStatus("loading");
+          contentFrameRef.current.src = contentFrameRef.current.src;
+          console.log("[TaskRunner] Refreshed iframe");
+        } else {
+          console.warn("[TaskRunner] Cannot refresh: iframe ref is null");
+        }
+        break;
+
+      case "screenshot":
+        console.warn("[TaskRunner] 'screenshot' task not implemented");
+        break;
+
+      default:
+        console.warn(`[TaskRunner] Unknown task type: ${(task as any).task}`);
+        break;
+    }
+
+
+    // Mark a task as completed
+    const markTaskCompleted = async (taskId: string) => {
+      try {
+        await actions.markTaskCompleted.orThrow({ taskId });
+        console.log(`[TaskRunner] Marked task ${taskId} as completed`);
+      } catch (e) {
+        console.error("[TaskRunner] Failed to mark task as completed:", e);
+      }
+    };
+    markTaskCompleted(task.id);
+  };
+
 
   useEffect(() => {
     const sendHeartbeat = async () => {
@@ -60,6 +99,13 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
       try {
         const data = await actions.heartbeat.orThrow({ sessionId });
         compareConfigToDOM(data.session);
+        
+        // Process any tasks that came with the heartbeat
+        if (data.tasks && data.tasks.length > 0) {
+          console.log(`[TaskRunner] Received ${data.tasks.length} tasks`);
+          data.tasks.forEach(processTask);
+        }
+
         setTimeout(() => setConnectionStatus("active"), 1000);
       } catch (e) {
         console.error("Error sending heartbeat:", e);
@@ -110,14 +156,13 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
 
   return (
     <div className="flex flex-col w-full h-screen relative ">
-      
       {urlIsDefault && (
         <div
           id="new-modal"
           className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-20"
         >
-          <div className="bg-white/30 rounded-lg shadow-lg space-y-2 text-center">
-            <div className="bg-white/90 px-6 pt-4 pb-4 rounded-lg shadow-lg space-y-2 text-center">
+          <div className="bg-zinc-500 rounded-lg shadow-lg space-y-2 text-center">
+            <div className="bg-zinc-100 px-6 pt-4 pb-4 rounded-lg shadow-lg space-y-2 text-center">
               {/* <h2 className="text-xl font-bold">New Session</h2> */}
               <h3 className=" text-9xl font-bold tracking-widest font-mono">
                 {id}
@@ -133,6 +178,12 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
                 Session Manager
               </a>{" "}
               to configure.
+            </p>
+            <p className="text-zinc-300 opacity-70 text-xs m-4 leading-relaxed">
+              Or copy this URL to re-use on other system or browser.<br/>
+              <code className="text-zinc-200 text-xs font-mono rounded bg-zinc-600 p-1" onClick={
+                () => navigator.clipboard.writeText(`${window.location.origin}/?sessionId=${sessionId}`)
+              }>{window.location.origin}/?sessionId={sessionId}</code>
             </p>
           </div>
         </div>

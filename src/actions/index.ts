@@ -1,20 +1,31 @@
-import { ActionError, defineAction } from 'astro:actions';
-import { z } from 'astro:schema';
-import { randomUUID } from 'crypto';
-import { ConfigSchema, sessionStore, SessionIdSchema, type SessionData } from '../lib/sessionStore';
-import { UrlEntrySchema, urlHistory } from '../lib/urlHistoryStore';
+import { ActionError, defineAction } from "astro:actions";
+import { z } from "astro:schema";
+import { randomUUID } from "crypto";
+import {
+  ConfigSchema,
+  sessionStore,
+  SessionIdSchema,
+  type SessionData,
+} from "../lib/sessionStore";
+import { UrlEntrySchema, urlHistory } from "../lib/urlHistoryStore";
+import {
+  TaskIdSchema,
+  TaskNameSchema,
+  taskQueue,
+} from "../lib/taskQueue";
 
 function standardNotFoundActionError() {
   return new ActionError({
-    code: 'NOT_FOUND',
-    message: 'Session not found',
+    code: "NOT_FOUND",
+    message: "Session not found",
   });
 }
 
 export const server = {
+  // == Session Actions ==
 
   getAllSessions: defineAction({
-    handler: async () => {
+    handler: () => {
       const sessions = sessionStore.getAllSorted();
       return { sessions };
     },
@@ -24,7 +35,7 @@ export const server = {
     input: z.object({
       sessionId: SessionIdSchema.optional(),
     }),
-    handler: async ({ sessionId }) => {
+    handler: ({ sessionId }) => {
       // Generate a new session ID if not provided
       if (!sessionId) {
         sessionId = randomUUID();
@@ -41,36 +52,40 @@ export const server = {
       const session = sessionStore.get(sessionId);
       if (!session) throw standardNotFoundActionError();
 
-      return { 
-        sessionId, 
-        session: (session as SessionData)
+      return {
+        sessionId,
+        session: session as SessionData,
       };
     },
   }),
-  
+
   // Heartbeat endpoint to keep a session marked as active and return current config
   heartbeat: defineAction({
     input: z.object({
       sessionId: SessionIdSchema,
     }),
-    handler: async ({ sessionId }) => {
+    handler: ({ sessionId }) => {
       if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
 
       // Mark the session as active
       sessionStore.markActive(sessionId);
-      
+
       // Return the current session config to allow the client to check for updates
       const session = sessionStore.get(sessionId) as SessionData;
-      return { session };
+
+      // Return any outstanding tasks past their scheduled time
+      const tasks = taskQueue.getSessionsTasks(sessionId, false, false);
+
+      return { session, tasks };
     },
   }),
-  
+
   // Mark a session as inactive
   markInactive: defineAction({
     input: z.object({
       sessionId: SessionIdSchema,
     }),
-    handler: async ({ sessionId }) => {
+    handler: ({ sessionId }) => {
       if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
       sessionStore.markInactive(sessionId);
       return;
@@ -81,29 +96,29 @@ export const server = {
     input: z.object({
       sessionId: SessionIdSchema,
     }),
-    handler: async ({ sessionId }) => {
+    handler: ({ sessionId }) => {
       const session = sessionStore.get(sessionId);
       if (!session) throw standardNotFoundActionError();
-      return { 
+      return {
         isActive: session.isActive,
-        lastActiveAt: session.lastActiveAt
+        lastActiveAt: session.lastActiveAt,
       };
     },
   }),
-  
+
   updateSessionForm: defineAction({
-    accept: 'form',
+    accept: "form",
     input: ConfigSchema.extend({
       sessionId: SessionIdSchema,
     }),
-    handler: async ({ sessionId, ...config }) => {
+    handler: ({ sessionId, ...config }) => {
       const session = sessionStore.get(sessionId);
 
       if (!session) throw standardNotFoundActionError();
 
-      const updatedSession: SessionData = { 
-        ...session, 
-        ...config
+      const updatedSession: SessionData = {
+        ...session,
+        ...config,
       };
       sessionStore.set(sessionId, updatedSession);
       return;
@@ -114,13 +129,13 @@ export const server = {
     input: z.object({
       sessionId: SessionIdSchema,
     }),
-    handler: async ({ sessionId }) => {
+    handler: ({ sessionId }) => {
       if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
       const session = sessionStore.get(sessionId) as SessionData;
       if (session.isActive) {
         throw new ActionError({
-          code: 'FORBIDDEN',
-          message: 'Cannot delete an active session',
+          code: "FORBIDDEN",
+          message: "Cannot delete an active session",
         });
       }
       sessionStore.delete(sessionId);
@@ -128,18 +143,54 @@ export const server = {
     },
   }),
 
+  // == Task Queue Actions ==
+
   getUrlHistory: defineAction({
-    handler: async () => {
-      return { urls: urlHistory.getAllSorted() };
-    },
+    handler: () => ({ urls: urlHistory.getAllSorted() }),
   }),
 
   addUrlsToHistory: defineAction({
     input: z.object({
       urls: UrlEntrySchema.array(),
     }),
-    handler: async ({ urls }) => {
-      urls.forEach(entry => urlHistory.add(entry.url, entry.timestamp));
+    handler: ({ urls }) => {
+      urls.forEach((entry) => urlHistory.add(entry.url, entry.timestamp));
+      return;
+    },
+  }),
+
+  // == Task Actions ==
+
+  getTasksOverdue: defineAction({
+    input: z.object({
+      sessionId: SessionIdSchema,
+    }),
+    handler: ({ sessionId }) => ({
+      tasks: taskQueue.getSessionsTasks(sessionId, false, false),
+    }),
+  }),
+
+  markTaskCompleted: defineAction({
+    input: z.object({
+      taskId: TaskIdSchema,
+    }),
+    handler: ({ taskId }) => {
+      const task = taskQueue.get(taskId);
+      if (!task) throw standardNotFoundActionError();
+      taskQueue.markCompleted(taskId);
+      return;
+    },
+  }),
+
+  createTask: defineAction({
+    input: z.object({
+      sessionId: SessionIdSchema,
+      task: TaskNameSchema,
+      scheduledAt: z.number().optional(),
+    }),
+    handler: ({ sessionId, task, scheduledAt = Date.now() }) => {
+      if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
+      taskQueue.create(sessionId, task, scheduledAt);
       return;
     },
   }),

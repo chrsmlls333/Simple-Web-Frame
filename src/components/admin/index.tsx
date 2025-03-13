@@ -12,7 +12,6 @@ const AdminUI: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-
   const refreshSessions = async () => {
     // setLoading(true);
     try {
@@ -31,15 +30,22 @@ const AdminUI: React.FC = () => {
       const serverUrlEntries = data.urls || [];
       const serverUrls = serverUrlEntries.map(({ url }) => url);
 
-      const localUrls: UrlEntry[] = UrlEntrySchema.array().parse(JSON.parse(localStorage.getItem("urlHistory") || "[]"));
+      const localUrls: UrlEntry[] = UrlEntrySchema.array().parse(
+        JSON.parse(localStorage.getItem("urlHistory") || "[]")
+      );
 
-      const newUrlsEntries = localUrls.filter(({ url }) => !serverUrls.includes(url));
+      const newUrlsEntries = localUrls.filter(
+        ({ url }) => !serverUrls.includes(url)
+      );
       if (newUrlsEntries.length > 0) {
-        console.log(`[Client] Found ${newUrlsEntries.length} new URLs to sync back to server`);
+        console.log(
+          `[Client] Found ${newUrlsEntries.length} new URLs to sync back to server`
+        );
       }
 
-      const allUrlEntries = [...serverUrlEntries, ...newUrlsEntries]
-        .sort((a, b) => b.timestamp - a.timestamp);
+      const allUrlEntries = [...serverUrlEntries, ...newUrlsEntries].sort(
+        (a, b) => b.timestamp - a.timestamp
+      );
 
       setUrlHistory(allUrlEntries);
 
@@ -59,27 +65,20 @@ const AdminUI: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  
-
   const onDeleteSession = (id: SessionId) => async () => {
     try {
       await actions.deleteSession.orThrow({ sessionId: id });
-      setSessions(
-        sessions.filter(([sessionId]) => sessionId !== id)
-      );
+      setSessions(sessions.filter(([sessionId]) => sessionId !== id));
     } catch (e: any) {
       setError(`Failed to delete session: ${e?.message}`);
       return;
     }
-  }
+  };
 
   const onSubmitUrl = (url: string) => {
     // Add URL to state if its not already present, to top of list
     if (!urlHistory.find((entry) => entry.url === url)) {
-      setUrlHistory([
-        { url, timestamp: Date.now() },
-        ...urlHistory,
-      ]);
+      setUrlHistory([{ url, timestamp: Date.now() }, ...urlHistory]);
     }
 
     // server will add to its own history on submit
@@ -92,8 +91,6 @@ const AdminUI: React.FC = () => {
       localStorage.setItem("urlHistory", JSON.stringify(urlHistory));
     }
   }, [urlHistory]);
-
-  
 
   return (
     <div className="flex h-screen bg-gray-100">
