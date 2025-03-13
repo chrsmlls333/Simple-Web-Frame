@@ -1,57 +1,81 @@
 import { z } from 'astro:schema';
 import { map } from 'nanostores';
+import { urlHistory } from './urlHistoryStore';
+
+// ====================================================================================
 
 // Schema definitions
 export const SessionIdSchema = z.string();
+export type SessionId = z.infer<typeof SessionIdSchema>;
 export const ConfigSchema = z.object({
   iframeUrl: z.string().url(),
 });
 export const ActivitySchema = z.object({
-  lastActive: z.number().optional(), // Timestamp of last activity
-  isActive: z.boolean().optional(), // Whether the session is currently active
+  createdAt: z.number(), // Timestamp of session creation
+  lastActiveAt: z.number(), // Timestamp of last activity
+  isActive: z.boolean(), // Whether the session is currently active
 });
 export type Config = z.infer<typeof ConfigSchema>;
-export const SessionSchema = ConfigSchema.merge(ActivitySchema);
-export type Session = z.infer<typeof SessionSchema>;
+export const SessionDataSchema = ConfigSchema.merge(ActivitySchema);
+export type SessionData = z.infer<typeof SessionDataSchema>;
 
-// Default configuration
-export const getDefaultSession = (): Session => ({
-  iframeUrl: 'https://default.url',
-  lastActive: Date.now(),
-  isActive: true,
-});
-
-// Timeout for inactivity (in milliseconds)
-export const SESSION_INACTIVE_TIMEOUT = 30 * 1000;
+// =====================================================================================
 
 // Create a nanostore map for session configs
-export const $sessions = map<Record<string, Session>>({});
+const $sessions = map<Record<SessionId, SessionData>>({});
+const SESSION_INACTIVE_TIMEOUT = 30 * 1000;
+export const DEFAULT_IFRAME_URL = 'https://default.url';
+
 
 // Create wrapper functions to interact with the store and add logging
 export const sessionStore = {
-  get: (sessionId: string): Session | undefined => {
+  get: (sessionId: SessionId): SessionData | undefined => {
     const sessions = $sessions.get();
     return sessions[sessionId];
   },
 
-  set: (sessionId: string, session: Session): void => {
-    console.log(`[SessionStore] Setting session for ${sessionId}:`, session);
+  set: (sessionId: SessionId, session: SessionData): void => {
+    // console.log(`[SessionStore] Setting session for ${sessionId}:`, session);
     $sessions.setKey(sessionId, session);
   },
-  
-  setConfig: (sessionId: string, config: Config): void => {
-    console.log(`[SessionStore] Setting config for session ${sessionId}:`, config);
+
+  setConfig: (sessionId: SessionId, config: Config): boolean => {
+    // console.log(`[SessionStore] Setting config for session ${sessionId}:`, config);
     // merge with existing session if it exists
-    const existing = sessionStore.get(sessionId);
-    $sessions.setKey(sessionId, { ...existing, ...config });
+    let existing = sessionStore.get(sessionId);
+    if (!existing) {
+      console.warn(`[SessionStore] Session ${sessionId} not found, creating new session`);
+    }
+    $sessions.setKey(sessionId, { ...(existing ?? sessionStore.getDefaultSession()), ...config });
+    return !!existing;
+  },
+
+  getDefaultSession: (): SessionData => {
+    const now = Date.now();
+    return {
+      iframeUrl: DEFAULT_IFRAME_URL,
+      createdAt: now,
+      lastActiveAt: now,
+      isActive: true,
+    }
+  },
+
+  create: (sessionId: SessionId): boolean => {
+    if (sessionStore.has(sessionId)) {
+      console.warn(`[SessionStore] Session ${sessionId} already exists`);
+      return false;
+    }
+    console.log(`[SessionStore] Creating session ${sessionId}`);
+    sessionStore.set(sessionId, sessionStore.getDefaultSession());
+    return true;
   },
   
-  has: (sessionId: string): boolean => {
+  has: (sessionId: SessionId): boolean => {
     const configs = $sessions.get();
     return sessionId in configs;
   },
   
-  delete: (sessionId: string): boolean => {
+  delete: (sessionId: SessionId): boolean => {
     const existed = sessionStore.has(sessionId);
     if (existed) {
       console.log(`[SessionStore] Deleting session ${sessionId}`);
@@ -65,27 +89,29 @@ export const sessionStore = {
   getAll: () => $sessions.get(),
   
   // Mark a session as active and update last activity
-  markActive: (sessionId: string): void => {
+  markActive: (sessionId: SessionId): boolean => {
     const session = sessionStore.get(sessionId);
     if (session) {
       sessionStore.set(sessionId, {
         ...session,
         isActive: true,
-        lastActive: Date.now(),
+        lastActiveAt: Date.now(),
       });
     }
+    return !!session;
   },
   
   // Mark a session as inactive
-  markInactive: (sessionId: string): void => {
+  markInactive: (sessionId: SessionId): boolean => {
     const session = sessionStore.get(sessionId);
     if (session) {
       sessionStore.set(sessionId, {
         ...session,
         isActive: false,
-        lastActive: Date.now(),
+        lastActiveAt: Date.now(),
       });
     }
+    return !!session;
   },
   
   // Get all sessions sorted by activity (active first, then by lastActive timestamp)
@@ -97,8 +123,8 @@ export const sessionStore = {
       if (!sessionA.isActive && sessionB.isActive) return 1;
       
       // Then sort by last active timestamp (most recent first)
-      const timeA = sessionA.lastActive || 0;
-      const timeB = sessionB.lastActive || 0;
+      const timeA = sessionA.lastActiveAt || 0;
+      const timeB = sessionB.lastActiveAt || 0;
       return timeB - timeA;
     });
   },
@@ -110,14 +136,16 @@ export const sessionStore = {
     
     Object.entries(sessions).forEach(([sessionId, session]) => {
       // If last activity is older than the timeout and session is marked active
-      if (session.isActive && session.lastActive && 
-          (now - session.lastActive > SESSION_INACTIVE_TIMEOUT)) {
+      if (session.isActive && session.lastActiveAt && 
+          (now - session.lastActiveAt > SESSION_INACTIVE_TIMEOUT)) {
         console.log(`[SessionStore] Auto marking session ${sessionId} as inactive due to timeout`);
         sessionStore.markInactive(sessionId);
       }
     });
   }
 };
+
+// =====================================================================================
 
 // Subscribe to store changes for logging
 $sessions.listen((state, prevState, changed) => {
@@ -134,6 +162,9 @@ $sessions.listen((state, prevState, changed) => {
           from: prev.iframeUrl,
           to: current.iframeUrl
         });
+
+        // Add the new URL to the history
+        urlHistory.add(current.iframeUrl); 
       }
       if (prev.isActive !== current.isActive) {
         console.log(`[SessionStore] Session ${changed} is now ${current.isActive ? 'active' : 'inactive'}!`);

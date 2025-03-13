@@ -1,9 +1,25 @@
-import { defineAction } from 'astro:actions';
+import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro:schema';
 import { randomUUID } from 'crypto';
-import { ConfigSchema, sessionStore, SessionIdSchema, getDefaultSession } from '../lib/sessionStore';
+import { ConfigSchema, sessionStore, SessionIdSchema, type SessionData } from '../lib/sessionStore';
+import { UrlEntrySchema, urlHistory } from '../lib/urlHistoryStore';
+
+function standardNotFoundActionError() {
+  return new ActionError({
+    code: 'NOT_FOUND',
+    message: 'Session not found',
+  });
+}
 
 export const server = {
+
+  getAllSessions: defineAction({
+    handler: async () => {
+      const sessions = sessionStore.getAllSorted();
+      return { sessions };
+    },
+  }),
+
   getSession: defineAction({
     input: z.object({
       sessionId: SessionIdSchema.optional(),
@@ -14,22 +30,20 @@ export const server = {
         sessionId = randomUUID();
       }
 
-      // If this is a new session ID, create a default config
-      const sessionDefaults = getDefaultSession();
       if (!sessionStore.has(sessionId)) {
-        sessionStore.set(sessionId, sessionDefaults);
+        // If this is a new session ID, create a default config
+        sessionStore.create(sessionId);
       } else {
         // Mark existing session as active
         sessionStore.markActive(sessionId);
       }
 
-      // Ensure the config is never undefined
-      const session = sessionStore.get(sessionId) || sessionDefaults;
+      const session = sessionStore.get(sessionId);
+      if (!session) throw standardNotFoundActionError();
 
       return { 
-        success: true, 
         sessionId, 
-        session
+        session: (session as SessionData)
       };
     },
   }),
@@ -40,15 +54,14 @@ export const server = {
       sessionId: SessionIdSchema,
     }),
     handler: async ({ sessionId }) => {
-      if (sessionStore.has(sessionId)) {
-        // Mark the session as active
-        sessionStore.markActive(sessionId);
-        
-        // Return the current session config to allow the client to check for updates
-        const session = sessionStore.get(sessionId);
-        return { success: true, session };
-      }
-      return { success: false, error: "Session not found" };
+      if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
+
+      // Mark the session as active
+      sessionStore.markActive(sessionId);
+      
+      // Return the current session config to allow the client to check for updates
+      const session = sessionStore.get(sessionId) as SessionData;
+      return { session };
     },
   }),
   
@@ -58,11 +71,23 @@ export const server = {
       sessionId: SessionIdSchema,
     }),
     handler: async ({ sessionId }) => {
-      if (sessionStore.has(sessionId)) {
-        sessionStore.markInactive(sessionId);
-        return { success: true };
-      }
-      return { success: false, error: "Session not found" };
+      if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
+      sessionStore.markInactive(sessionId);
+      return;
+    },
+  }),
+
+  checkActive: defineAction({
+    input: z.object({
+      sessionId: SessionIdSchema,
+    }),
+    handler: async ({ sessionId }) => {
+      const session = sessionStore.get(sessionId);
+      if (!session) throw standardNotFoundActionError();
+      return { 
+        isActive: session.isActive,
+        lastActiveAt: session.lastActiveAt
+      };
     },
   }),
   
@@ -71,29 +96,51 @@ export const server = {
     input: ConfigSchema.extend({
       sessionId: SessionIdSchema,
     }),
-    handler: async ({ sessionId, iframeUrl }) => {
+    handler: async ({ sessionId, ...config }) => {
       const session = sessionStore.get(sessionId);
-      if (session) {
-        const updatedSession = { 
-          ...session, 
-          iframeUrl,
-          lastActive: session.lastActive || Date.now() 
-        };
-        sessionStore.set(sessionId, updatedSession);
-        return { success: true };
-      }
-      return { success: false };
+
+      if (!session) throw standardNotFoundActionError();
+
+      const updatedSession: SessionData = { 
+        ...session, 
+        ...config
+      };
+      sessionStore.set(sessionId, updatedSession);
+      return;
     },
   }),
-  
-  deleteSessionForm: defineAction({
-    accept: 'form',
+
+  deleteSession: defineAction({
     input: z.object({
       sessionId: SessionIdSchema,
     }),
     handler: async ({ sessionId }) => {
-      const existed = sessionStore.delete(sessionId);
-      return { success: existed };
+      if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
+      const session = sessionStore.get(sessionId) as SessionData;
+      if (session.isActive) {
+        throw new ActionError({
+          code: 'FORBIDDEN',
+          message: 'Cannot delete an active session',
+        });
+      }
+      sessionStore.delete(sessionId);
+      return;
+    },
+  }),
+
+  getUrlHistory: defineAction({
+    handler: async () => {
+      return { urls: urlHistory.getAllSorted() };
+    },
+  }),
+
+  addUrlsToHistory: defineAction({
+    input: z.object({
+      urls: UrlEntrySchema.array(),
+    }),
+    handler: async ({ urls }) => {
+      urls.forEach(entry => urlHistory.add(entry.url, entry.timestamp));
+      return;
     },
   }),
 };

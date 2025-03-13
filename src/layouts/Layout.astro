@@ -1,5 +1,12 @@
 ---
 import '../styles/global.css'; // Import global styles from Tailwind CSS
+
+interface Props {
+	title?: string;
+	bodyClass?: string;
+}
+
+const { title = 'Simple Web Frame', bodyClass = '' } = Astro.props;
 ---
 
 <!doctype html>
@@ -9,9 +16,9 @@ import '../styles/global.css'; // Import global styles from Tailwind CSS
 		<meta name="viewport" content="width=device-width" />
 		<!-- <link rel="icon" type="image/svg+xml" href="/favicon.svg" /> -->
 		<meta name="generator" content={Astro.generator} />
-		<title>Simple Web Frame</title>
+		<title>{title}</title>
 	</head>
-	<body>
+	<body class={bodyClass}>
 		<slot />
 	</body>
 </html>

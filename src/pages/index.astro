@@ -1,38 +1,25 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import SessionFrame from '../components/SessionFrame';
-import { type Config } from '../lib/sessionStore';
+import SessionFrame from '../components/session';
+import { SessionIdSchema, type Config } from '../lib/sessionStore';
 import { actions } from 'astro:actions';
 
-// Get session ID from URL parameter or generate a random one
+// Get session ID from URL parameter
 const urlParams = new URL(Astro.request.url).searchParams;
-let sessionId = urlParams.get('sessionId');
-
-// Use the server action to get or create a session
-const { data, error } = await Astro.callAction( actions.getSession, {
-  sessionId: sessionId || undefined
-});
-if (error) {
-	return new Response('Failed to get session', { status: 500 });
+const foundSessionId = urlParams.get('sessionId');
+if (foundSessionId) {
+  // Use the server action to get or create a session before serving the page
+  try {
+    await Astro.callAction(actions.getSession.orThrow, {
+      sessionId: foundSessionId
+    });
+  } catch (error) {
+    console.error('Failed to get session before serving', error);
+  }
 }
-sessionId = data.sessionId;
-const config: Config = data.session;
+
 ---
 
-<Layout>
-  <SessionFrame sessionId={sessionId} config={config} client:load />
-  
-  <script define:vars={{ sessionId }}>
-    // Store session ID in localStorage for persistence
-    localStorage.setItem('currentSessionId', sessionId);
-    
-    // Update URL to include session ID without page reload
-    const url = new URL(window.location);
-    if (!url.searchParams.has('sessionId')) {
-      url.searchParams.set('sessionId', sessionId);
-      window.history.replaceState({}, '', url);
-    }
-
-    console.log(`[Client] Using session: ${sessionId}`);
-  </script>
+<Layout bodyClass=" bg-black">
+  <SessionFrame client:load />
 </Layout>
