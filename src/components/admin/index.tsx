@@ -3,6 +3,7 @@ import { actions } from "astro:actions";
 import type { SessionData, SessionId } from "../../lib/sessionStore";
 import SessionCard from "./SessionCard";
 import { UrlEntrySchema, type UrlEntry } from "../../lib/urlHistoryStore";
+import { AnimatePresence, motion } from "motion/react";
 
 const AdminUI: React.FC = () => {
   const [sessions, setSessions] = useState<[SessionId, SessionData][]>([]);
@@ -121,22 +122,35 @@ const AdminUI: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {sessions.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
-                  No active sessions found.
-                </p>
-              ) : (
-                sessions.map(([id, data]) => (
-                  <SessionCard
-                    key={id}
-                    id={id}
-                    session={data}
-                    urlOptions={urls}
-                    onDelete={onDeleteSession(id)}
-                    onSubmitUrl={onSubmitUrl}
-                  />
-                ))
-              )}
+              <AnimatePresence>
+                {sessions.length === 0 ? (
+                  <motion.p
+                    key={"no-sessions"}
+                    className="text-gray-500 text-center py-8"
+                  >
+                    No active sessions found.
+                  </motion.p>
+                ) : (
+                  sessions.map(([id, data]) => (
+                    <motion.div
+                      key={id}
+                      layout
+                      layoutId={id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <SessionCard
+                        id={id}
+                        session={data}
+                        urlOptions={urls}
+                        onDelete={onDeleteSession(id)}
+                        onSubmitUrl={onSubmitUrl}
+                      />
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
               {/* new session button */}
               <div className="flex justify-center">
                 <button

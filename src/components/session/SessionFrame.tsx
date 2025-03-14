@@ -6,8 +6,10 @@ import {
 } from "../../lib/sessionStore";
 import type { Task } from "../../lib/taskQueue";
 import { actions } from "astro:actions";
-import { cn, getReadableUUID } from "../../lib/styles";
+import { getReadableUUID } from "../../lib/styles";
 import { useMouseActivity } from "../useMouseActivity";
+import { AnimatePresence, motion } from "motion/react";
+import CopyUrl from "./CopyUrl";
 
 interface SessionFrameProps {
   sessionId: SessionId;
@@ -78,7 +80,6 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
         break;
     }
 
-
     // Mark a task as completed
     const markTaskCompleted = async (taskId: string) => {
       try {
@@ -91,7 +92,6 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
     markTaskCompleted(task.id);
   };
 
-
   useEffect(() => {
     const sendHeartbeat = async () => {
       setConnectionStatus("pulse");
@@ -99,7 +99,7 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
       try {
         const data = await actions.heartbeat.orThrow({ sessionId });
         compareConfigToDOM(data.session);
-        
+
         // Process any tasks that came with the heartbeat
         if (data.tasks && data.tasks.length > 0) {
           console.log(`[TaskRunner] Received ${data.tasks.length} tasks`);
@@ -155,40 +155,58 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
   }, [sessionId, config.iframeUrl]);
 
   return (
-    <div className="flex flex-col w-full h-screen relative ">
-      {urlIsDefault && (
-        <div
-          id="new-modal"
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-20"
-        >
-          <div className="bg-zinc-500 rounded-lg shadow-lg space-y-2 text-center">
-            <div className="bg-zinc-100 px-6 pt-4 pb-4 rounded-lg shadow-lg space-y-2 text-center">
-              {/* <h2 className="text-xl font-bold">New Session</h2> */}
-              <h3 className=" text-9xl font-bold tracking-widest font-mono">
-                {id}
-              </h3>
-            </div>
-            <p className="text-white opacity-70 m-4">
-              This session is ready to use. Go to the{" "}
-              <a
-                href={`/admin#session-${sessionId}`}
-                target="_blank"
-                className="underline"
-              >
-                Session Manager
-              </a>{" "}
-              to configure.
-            </p>
-            <p className="text-zinc-300 opacity-70 text-xs m-4 leading-relaxed">
-              Or copy this URL to re-use on other system or browser.<br/>
-              <code className="text-zinc-200 text-xs font-mono rounded bg-zinc-600 p-1" onClick={
-                () => navigator.clipboard.writeText(`${window.location.origin}/?sessionId=${sessionId}`)
-              }>{window.location.origin}/?sessionId={sessionId}</code>
-            </p>
-          </div>
-        </div>
-      )}
-      <div id="iframe-container" className="flex-grow relative">
+    <div className="flex flex-col w-full h-screen relative overflow-clip">
+      <AnimatePresence>
+        {urlIsDefault && (
+          <motion.div
+            id="new-modal"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-20"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-zinc-500 rounded-lg shadow-lg space-y-2 text-center"
+              initial={{ scale: 0.5 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.5 }}
+              transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+            >
+              <div className="bg-zinc-100 px-6 pt-4 pb-4 rounded-lg shadow-lg space-y-2 text-center">
+                {/* <h2 className="text-xl font-bold">New Session</h2> */}
+                <h3 className=" text-9xl font-bold tracking-widest font-mono">
+                  {id}
+                </h3>
+              </div>
+              <div className="space-y-2 text-center m-2 mb-4">
+                <p className="text-white opacity-70">
+                  This session is ready to use. Go to the{" "}
+                  <a
+                    href={`/admin#session-${sessionId}`}
+                    target="_blank"
+                    className="underline"
+                  >
+                    Session Manager
+                  </a>{" "}
+                  to configure.
+                </p>
+                <p className="text-zinc-300 opacity-70 text-xs leading-loose">
+                  Or copy this URL to re-use on other system or browser.
+                  <br />
+                  <CopyUrl url={`${window.location.origin}/?sessionId=${sessionId}`} />
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        id="iframe-container"
+        className="flex-grow relative"
+        initial={{ opacity: 1 }}
+        animate={{ opacity: iframeStatus === "loading" ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
         <iframe
           id="content-frame"
           ref={contentFrameRef}
@@ -196,20 +214,20 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
           allow="clipboard-read;clipboard-write;geolocation;camera;microphone;midi;usb;serial;xr-spatial-tracking;web-share;ambient-light-sensor;window-management"
           sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-downloads allow-popups allow-popups-to-escape-sandbox"
           allowFullScreen={true}
-          className={cn([
-            "absolute top-0 left-0 w-full h-full border-none transition-opacity",
-            iframeStatus === "loading" && "opacity-0",
-          ])}
+          className={"absolute top-0 left-0 w-full h-full border-none transition-opacity"}
           onLoad={() => setIframeStatus("loaded")}
           onError={() => setIframeStatus("error")}
         ></iframe>
-      </div>
-      <div
+      </motion.div>
+      <motion.div
         id="session-info-bar"
-        className={cn([
-          "p-2 bg-gray-100 border-t border-gray-300 flex justify-between opacity-100 absolute bottom-[1px] w-full z-10 transition-opacity duration-300",
-          iframeStatus === "loaded" && !isMouseMoving && "opacity-0",
-        ])}
+        className={"p-2 bg-gray-100/80 border-t border-gray-300 flex justify-between opacity-100 absolute bottom-[1px] w-full z-10 transition-opacity duration-300 pb-6 -mb-4"}
+        initial={{ opacity: 1, y: 0 }}
+        animate={
+          iframeStatus === "loaded" && !isMouseMoving
+            ? { y: 50, opacity: 0 }
+            : { y: 0, opacity: 1 }
+        }
       >
         <p>
           Session ID:{" "}
@@ -236,17 +254,17 @@ const SessionFrame: React.FC<SessionFrameProps> = ({
           </span>
         </p>
         <style>{`
-        @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-        }
-        
-        .animate-pulse {
-        animation: pulse 1s ease-in-out;
-        }
-      `}</style>
-      </div>
+          @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+          }
+          
+          .animate-pulse {
+          animation: pulse 1s ease-in-out;
+          }
+        `}</style>
+      </motion.div>
       {!isMouseMoving && (
         // TODO: Cursor hiding doesn't work over iframe, this does not resolve the issue
         <div className="fixed inset-0 opacity-0 z-50 cursor-none"></div>

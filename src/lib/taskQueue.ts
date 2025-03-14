@@ -101,8 +101,7 @@ export const taskQueue = {
 
 // Notify about changes to the task queue
 $queue.listen((tasks, prevTasks) => {
-  console.log(tasks);
-  
+ 
   // Check for completed tasks
   const completedTasks = tasks.filter((task) => !prevTasks.find((ptask) => ptask.id === task.id && !ptask.completed));
   for (const task of completedTasks) {
@@ -114,6 +113,7 @@ $queue.listen((tasks, prevTasks) => {
   for (const task of newTasks) {
     console.log(`[TaskQueue] New task ${task.id} for session ${task.sessionId}`);
   }
+  
 });
 
 // Periodically check for completed tasks and remove them
