@@ -1,23 +1,14 @@
-import { ActionError, defineAction } from "astro:actions";
-import { z } from "astro:schema";
-import { randomUUID } from "crypto";
-import {
-  ConfigSchema,
-  sessionStore,
-  SessionIdSchema,
-  type SessionData,
-} from "../lib/sessionStore";
-import { UrlEntrySchema, urlHistory } from "../lib/urlHistoryStore";
-import {
-  TaskIdSchema,
-  TaskNameSchema,
-  taskQueue,
-} from "../lib/taskQueue";
+import { ActionError, defineAction } from 'astro:actions';
+import { z } from 'astro:schema';
+import { randomUUID } from 'crypto';
+import { ConfigSchema, sessionStore, SessionIdSchema, type SessionData } from '../lib/sessionStore';
+import { UrlEntrySchema, urlHistory } from '../lib/urlHistoryStore';
+import { TaskIdSchema, TaskNameSchema, taskQueue } from '../lib/taskQueue';
 
 function standardNotFoundActionError() {
   return new ActionError({
-    code: "NOT_FOUND",
-    message: "Session not found",
+    code: 'NOT_FOUND',
+    message: 'Session not found',
   });
 }
 
@@ -107,7 +98,7 @@ export const server = {
   }),
 
   updateSessionForm: defineAction({
-    accept: "form",
+    accept: 'form',
     input: ConfigSchema.extend({
       sessionId: SessionIdSchema,
     }),
@@ -134,8 +125,8 @@ export const server = {
       const session = sessionStore.get(sessionId) as SessionData;
       if (session.isActive) {
         throw new ActionError({
-          code: "FORBIDDEN",
-          message: "Cannot delete an active session",
+          code: 'FORBIDDEN',
+          message: 'Cannot delete an active session',
         });
       }
       sessionStore.delete(sessionId);

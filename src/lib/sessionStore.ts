@@ -26,7 +26,6 @@ const $sessions = map<Record<SessionId, SessionData>>({});
 const SESSION_INACTIVE_TIMEOUT = 30 * 1000;
 export const DEFAULT_IFRAME_URL = 'https://default.url';
 
-
 // Create wrapper functions to interact with the store and add logging
 export const sessionStore = {
   get: (sessionId: SessionId): SessionData | undefined => {
@@ -57,7 +56,7 @@ export const sessionStore = {
       createdAt: now,
       lastActiveAt: now,
       isActive: true,
-    }
+    };
   },
 
   create: (sessionId: SessionId): boolean => {
@@ -69,12 +68,12 @@ export const sessionStore = {
     sessionStore.set(sessionId, sessionStore.getDefaultSession());
     return true;
   },
-  
+
   has: (sessionId: SessionId): boolean => {
     const configs = $sessions.get();
     return sessionId in configs;
   },
-  
+
   delete: (sessionId: SessionId): boolean => {
     const existed = sessionStore.has(sessionId);
     if (existed) {
@@ -84,10 +83,10 @@ export const sessionStore = {
     }
     return existed;
   },
-  
+
   // For debugging
   getAll: () => $sessions.get(),
-  
+
   // Mark a session as active and update last activity
   markActive: (sessionId: SessionId): boolean => {
     const session = sessionStore.get(sessionId);
@@ -100,7 +99,7 @@ export const sessionStore = {
     }
     return !!session;
   },
-  
+
   // Mark a session as inactive
   markInactive: (sessionId: SessionId): boolean => {
     const session = sessionStore.get(sessionId);
@@ -113,7 +112,7 @@ export const sessionStore = {
     }
     return !!session;
   },
-  
+
   // Get all sessions sorted by activity (active first, then by lastActive timestamp)
   getAllSorted: () => {
     const configs = sessionStore.getAll();
@@ -121,28 +120,31 @@ export const sessionStore = {
       // First sort by active status (active first)
       if (sessionA.isActive && !sessionB.isActive) return -1;
       if (!sessionA.isActive && sessionB.isActive) return 1;
-      
+
       // Then sort by last active timestamp (most recent first)
       const timeA = sessionA.lastActiveAt || 0;
       const timeB = sessionB.lastActiveAt || 0;
       return timeB - timeA;
     });
   },
-  
+
   // Check for inactive sessions
   cleanupInactiveSessions: () => {
     const now = Date.now();
     const sessions = sessionStore.getAll();
-    
+
     Object.entries(sessions).forEach(([sessionId, session]) => {
       // If last activity is older than the timeout and session is marked active
-      if (session.isActive && session.lastActiveAt && 
-          (now - session.lastActiveAt > SESSION_INACTIVE_TIMEOUT)) {
+      if (
+        session.isActive &&
+        session.lastActiveAt &&
+        now - session.lastActiveAt > SESSION_INACTIVE_TIMEOUT
+      ) {
         console.log(`[SessionStore] Auto marking session ${sessionId} as inactive due to timeout`);
         sessionStore.markInactive(sessionId);
       }
     });
-  }
+  },
 };
 
 // =====================================================================================
@@ -151,23 +153,25 @@ export const sessionStore = {
 $sessions.listen((state, prevState, changed) => {
   if (changed && state[changed]) {
     // console.log(`[SessionStore] Session '${changed}' updated:`, state[changed]);
-    
+
     // Check if this was a config change
     const prev = prevState[changed];
     const current = state[changed];
-    
+
     if (prev && current) {
       if (prev.iframeUrl !== current.iframeUrl) {
         console.log(`[SessionStore] Iframe URL changed for session ${changed}:`, {
           from: prev.iframeUrl,
-          to: current.iframeUrl
+          to: current.iframeUrl,
         });
 
         // Add the new URL to the history
-        urlHistory.add(current.iframeUrl); 
+        urlHistory.add(current.iframeUrl);
       }
       if (prev.isActive !== current.isActive) {
-        console.log(`[SessionStore] Session ${changed} is now ${current.isActive ? 'active' : 'inactive'}!`);
+        console.log(
+          `[SessionStore] Session ${changed} is now ${current.isActive ? 'active' : 'inactive'}!`
+        );
       }
     }
   } else if (changed && !state[changed]) {

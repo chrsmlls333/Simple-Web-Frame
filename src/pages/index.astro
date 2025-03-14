@@ -11,19 +11,19 @@ if (foundSessionId) {
   // Use the server action to get or create a session before serving the page
   try {
     await Astro.callAction(actions.getSession.orThrow, {
-      sessionId: foundSessionId
+      sessionId: foundSessionId,
     });
   } catch (error) {
     console.error('Failed to get session before serving', error);
   }
 }
-
 ---
 
-<Layout bodyClass=" bg-black">
+<Layout bodyClass=' bg-black'>
   <SessionFrame client:load />
   <style>
-    html, body {
+    html,
+    body {
       background-color: black;
     }
   </style>

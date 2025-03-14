@@ -1,13 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import AdminUI from '../../components/admin';
-import { actions } from 'astro:actions';
-
-// Get active sessions sorted by activity status and time
-import { sessionStore } from '../../lib/sessionStore';
-
-// Get result of form submission
-const updateResult = Astro.getActionResult(actions.updateSessionForm);
 ---
 
 <Layout>

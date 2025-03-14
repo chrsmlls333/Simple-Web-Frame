@@ -22,20 +22,25 @@ export default function ReactSession() {
         // Get session ID from URL parameter or localStorage
         const urlParams = new URLSearchParams(window.location.search);
         let foundSessionId = urlParams.get(urlParamKey);
-        if (foundSessionId) console.log(`[Client] Found session ID in url query: ${foundSessionId}`);
+        if (foundSessionId)
+          console.log(`[Client] Found session ID in url query: ${foundSessionId}`);
 
-        // if not in urlparam, then 
+        // if not in urlparam, then
         if (!foundSessionId) {
           foundSessionId = localStorage.getItem('currentSessionId');
-          if (foundSessionId) console.log(`[Client] Found session ID in localStorage: ${foundSessionId}`);
+          if (foundSessionId)
+            console.log(`[Client] Found session ID in localStorage: ${foundSessionId}`);
         }
 
         // if not in urlparam or localstorage, then notify user
-        if (!foundSessionId) console.log(`[Client] No session ID found in url query or localStorage, server will generate a new one`);
-        
+        if (!foundSessionId)
+          console.log(
+            `[Client] No session ID found in url query or localStorage, server will generate a new one`
+          );
+
         // Call the server action to get or create a session
         const { data, error } = await actions.getSession({
-          sessionId: foundSessionId || undefined
+          sessionId: foundSessionId || undefined,
         });
 
         if (error || !data) {
@@ -67,20 +72,18 @@ export default function ReactSession() {
 
     initializeSession();
   }, []);
-  
+
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading session...</div>;
+    return <div className='flex h-screen items-center justify-center'>Loading session...</div>;
   }
-  
+
   if (error) {
-    return <div className="flex items-center justify-center h-screen text-red-600">{error}</div>;
+    return <div className='flex h-screen items-center justify-center text-red-600'>{error}</div>;
   }
-  
+
   return (
-    <div className="min-h-screen">
-      {sessionId && sessionData && (
-        <SessionFrame sessionId={sessionId} config={sessionData} />
-      )}
+    <div className='min-h-screen'>
+      {sessionId && sessionData && <SessionFrame sessionId={sessionId} config={sessionData} />}
     </div>
   );
 }

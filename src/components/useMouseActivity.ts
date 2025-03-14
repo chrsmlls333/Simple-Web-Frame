@@ -24,7 +24,7 @@ export const useMouseActivity = (inactiveTime: number = 5000) => {
     // Update last activity timestamp when mouse moves
     const handleActivity = throttle(() => {
       setLastActivity(Date.now());
-      setIsActive(true);      
+      setIsActive(true);
     }, 200); // Throttle to run at most once every 200ms
 
     // Check if user has been inactive

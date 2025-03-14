@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
-import type { SessionData, SessionId } from "../../lib/sessionStore";
-import { actions } from "astro:actions";
-import { cn, formatTimestamp, getReadableUUID } from "../../lib/styles";
+import React, { useState, useEffect } from 'react';
+import type { SessionData, SessionId } from '../../lib/sessionStore';
+import { actions } from 'astro:actions';
+import { cn, formatTimestamp, getReadableUUID } from '../../lib/styles';
 
 interface SessionCardProps {
   id: SessionId;
@@ -19,16 +19,14 @@ const SessionCard: React.FC<SessionCardProps> = ({
   onDelete,
 }) => {
   const [isActive, setIsActive] = useState(session.isActive);
-  const [lastActiveAt, setLastActiveAt] = useState(
-    formatTimestamp(session.lastActiveAt)
-  );
+  const [lastActiveAt, setLastActiveAt] = useState(formatTimestamp(session.lastActiveAt));
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    onSubmitUrl(formData.get("iframeUrl") as string); // field is required
+    onSubmitUrl(formData.get('iframeUrl') as string); // field is required
     try {
       await actions.updateSessionForm.orThrow(formData);
       setSuccess(true);
@@ -43,7 +41,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
     const interval = setInterval(async () => {
       const { data, error } = await actions.checkActive({ sessionId: id });
       if (error) {
-        setError("Failed to check session status");
+        setError('Failed to check session status');
         return;
       }
       setIsActive(data.isActive);
@@ -56,58 +54,50 @@ const SessionCard: React.FC<SessionCardProps> = ({
     <div
       id={`session-${id}`}
       className={cn([
-        "p-4 rounded-lg shadow-md mb-4 border-l-4 transition-colors bg-gray-200 border-gray-500",
-        isActive && " border-green-500 bg-white",
-        success && "border-green-500 bg-green-100",
-        error && "border-red-500 bg-red-100",
+        'mb-4 rounded-lg border-l-4 border-gray-500 bg-gray-200 p-4 shadow-md transition-colors',
+        isActive && 'border-green-500 bg-white',
+        success && 'border-green-500 bg-green-100',
+        error && 'border-red-500 bg-red-100',
       ])}
     >
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex flex-row items-center gap-2">
-          <div className="flex items-center p-1 rounded-lg border border-gray-300">
-            <h3 className="text-2xl font-mono font-bold tracking-widest leading-none in-target:animate-bounce">
+      <div className='mb-3 flex items-center justify-between'>
+        <div className='flex flex-row items-center gap-2'>
+          <div className='flex items-center rounded-lg border border-gray-300 p-1'>
+            <h3 className='font-mono text-2xl leading-none font-bold tracking-widest in-target:animate-bounce'>
               {getReadableUUID(id)}
             </h3>
           </div>
-          <div className="flex items-center">
+          <div className='flex items-center'>
             <span
               className={cn([
-                "inline-block w-3 h-3 rounded-full mr-2",
-                isActive ? "bg-green-500" : "bg-gray-500",
+                'mr-2 inline-block h-3 w-3 rounded-full',
+                isActive ? 'bg-green-500' : 'bg-gray-500',
               ])}
             ></span>
-            <span
-              className={cn([
-                "text-sm",
-                isActive ? "text-green-600" : "text-gray-600",
-              ])}
-            >
-              {isActive ? "Active" : "Inactive"}
+            <span className={cn(['text-sm', isActive ? 'text-green-600' : 'text-gray-600'])}>
+              {isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
         </div>
-        <div className="text-right text-sm text-gray-400">
+        <div className='text-right text-sm text-gray-400'>
           {/* <div>Last Active:</div> */}
           <div>{lastActiveAt}</div>
         </div>
       </div>
 
-      {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
+      {error && <div className='mb-2 text-sm text-red-600'>{error}</div>}
 
-      <form id={`form-update-${id}`} className="space-y-4" onSubmit={onSubmit}>
-        <input type="hidden" name="sessionId" value={id} />
-        <div className="form-group">
-          <label
-            htmlFor={`iframeUrl-${id}`}
-            className="block mb-1 text-sm font-medium"
-          >
+      <form id={`form-update-${id}`} className='space-y-4' onSubmit={onSubmit}>
+        <input type='hidden' name='sessionId' value={id} />
+        <div className='form-group'>
+          <label htmlFor={`iframeUrl-${id}`} className='mb-1 block text-sm font-medium'>
             iframe URL:
           </label>
           <input
-            type="url"
+            type='url'
             id={`iframeUrl-${id}`}
-            name="iframeUrl"
-            className="w-full p-2 border rounded mb-2"
+            name='iframeUrl'
+            className='mb-2 w-full rounded border p-2'
             defaultValue={session.iframeUrl}
             required
             list={`urlOptions-${id}`}
@@ -118,26 +108,26 @@ const SessionCard: React.FC<SessionCardProps> = ({
             ))}
           </datalist>
         </div>
-        <div className="flex space-x-2">
+        <div className='flex space-x-2'>
           <button
-            type="submit"
-            className="bg-green-600 text-white py-2 px-4 text-sm rounded hover:bg-green-700"
+            type='submit'
+            className='rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700'
           >
             Update
           </button>
           <button
-            type="button"
-            className="bg-blue-600 text-white py-2 px-4 text-sm rounded hover:bg-blue-700"
-            onClick={() => window.open(`/?sessionId=${id}`, "_blank")}
+            type='button'
+            className='rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700'
+            onClick={() => window.open(`/?sessionId=${id}`, '_blank')}
           >
             Open
           </button>
           {!isActive && (
             <button
-              type="button"
+              type='button'
               disabled={isActive}
               className={cn([
-                "bg-red-600 text-white py-2 px-4 text-sm rounded hover:bg-red-700 disabled:bg-red-300 disabled:border disabled:border-red-600 disabled:cursor-not-allowed",
+                'rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:border disabled:border-red-600 disabled:bg-red-300',
               ])}
               onClick={onDelete}
             >
@@ -146,10 +136,10 @@ const SessionCard: React.FC<SessionCardProps> = ({
           )}
           {isActive && (
             <button
-              type="button"
-              className="bg-amber-600 text-white py-2 px-4 text-sm rounded hover:bg-amber-700"
+              type='button'
+              className='rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700'
               onClick={() => {
-                actions.createTask({ sessionId: id, task: "refresh" });
+                actions.createTask({ sessionId: id, task: 'refresh' });
               }}
             >
               Request Refresh
