@@ -1,33 +1,8 @@
-import { z } from "astro:schema";
-import { SessionIdSchema, type SessionId } from "./sessionStore";
+import { TaskSchema, type SessionId, type Task } from "../schemas";
 import { atom } from "nanostores";
 import { randomUUID } from "crypto";
 
 
-export const TaskIdSchema = z.string().uuid();
-export const TaskSchema = z
-  .object({
-    id: TaskIdSchema,
-    sessionId: SessionIdSchema,
-    scheduledAt: z.number(),
-    completed: z.boolean().default(false),
-  })
-  .and(
-    z.union([
-      z.object({
-        task: z.literal("refresh"),
-      }),
-      z.object({
-        task: z.literal("fullscreen"),
-      }),
-      z.object({
-        task: z.literal("screenshot"), // not implemented
-      }),
-    ])
-  );
-export type Task = z.infer<typeof TaskSchema>;
-export const TaskNameSchema = z.enum(["refresh", "fullscreen", "screenshot"]); // manual
-export type TaskName = z.infer<typeof TaskNameSchema>;
 
 // ================================================================
 

@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { DEFAULT_IFRAME_URL, type Config, type SessionId } from '../../lib/sessionStore';
-import type { Task } from '../../lib/taskQueue';
-import { actions } from 'astro:actions';
+import { AnimatePresence, motion } from 'motion/react';
 import { getReadableUUID } from '../../lib/styles';
 import { useMouseActivity } from '../useMouseActivity';
-import { AnimatePresence, motion } from 'motion/react';
 import CopyUrl from './CopyUrl';
+
+import { type SessionId, type Config, type Task, DEFAULT_IFRAME_URL } from '@/lib/schemas';
+import { actions } from 'astro:actions';
+
 
 interface SessionFrameProps {
   sessionId: SessionId;

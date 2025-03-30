@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { actions } from 'astro:actions';
-import type { SessionData, SessionId } from '../../lib/sessionStore';
-import SessionCard from './SessionCard';
-import { UrlEntrySchema, type UrlEntry } from '../../lib/urlHistoryStore';
 import { AnimatePresence, motion } from 'motion/react';
+import SessionCard from './SessionCard';
+
+import { UrlEntrySchema, type UrlEntry, type SessionData, type SessionId } from '../../lib/schemas';
+import { actions } from 'astro:actions';
+
 
 const AdminUI: React.FC = () => {
   const [sessions, setSessions] = useState<[SessionId, SessionData][]>([]);

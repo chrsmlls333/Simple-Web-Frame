@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { type SessionData, type SessionId } from '../../lib/sessionStore';
-import { actions } from 'astro:actions';
+import { useState, useEffect } from 'react';
 import SessionFrame from './SessionFrame';
 
-interface ReactSessionProps {}
+import { type SessionData, type SessionId } from '../../lib/schemas';
+import { actions } from 'astro:actions';
+
+
+// interface ReactSessionProps {}
 
 export default function ReactSession() {
   const [sessionId, setSessionId] = useState<SessionId>();

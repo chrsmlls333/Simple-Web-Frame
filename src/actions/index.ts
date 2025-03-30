@@ -1,11 +1,13 @@
 import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro:schema';
 import { randomUUID } from 'crypto';
-import { ConfigSchema, sessionStore, SessionIdSchema, type SessionData } from '../lib/sessionStore';
-import { UrlEntrySchema, urlHistory } from '../lib/urlHistoryStore';
-import { TaskIdSchema, TaskNameSchema, taskQueue } from '../lib/taskQueue';
+import { ConfigSchema, SessionIdSchema, TaskIdSchema, TaskNameSchema, UrlEntrySchema, type SessionData } from '../lib/schemas';
+import { sessionStore } from '@/lib/nanostores/sessionStore';
+import { urlHistory } from '../lib/nanostores/urlHistoryStore';
+import { taskQueue } from '../lib/nanostores/taskQueue';
 
 function standardNotFoundActionError() {
+  console.error('Session not found in sessionStore');
   return new ActionError({
     code: 'NOT_FOUND',
     message: 'Session not found',
@@ -121,8 +123,8 @@ export const server = {
       sessionId: SessionIdSchema,
     }),
     handler: ({ sessionId }) => {
-      if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
-      const session = sessionStore.get(sessionId) as SessionData;
+      const session = sessionStore.get(sessionId);
+      if (!session) throw standardNotFoundActionError();
       if (session.isActive) {
         throw new ActionError({
           code: 'FORBIDDEN',

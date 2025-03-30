@@ -1,14 +1,25 @@
-import { z } from "astro:schema";
 import { map } from "nanostores";
+import { z } from "astro:schema";
+import { UrlEntrySchema, type UrlEntry } from "../schemas";
+import { getPreloadforMapStore, getWriteListener } from "./adaptors/redis";
 
-export const UrlEntrySchema = z.object({
-  url: z.string().url(),
-  timestamp: z.number(),
-});
-export type UrlEntry = z.infer<typeof UrlEntrySchema>;
+// =====================================================================================
 
+// Map of URL entries by URL
+const $urlHistoryMeta = {
+  key: 'urlhistory:',
+  encode: (value: UrlEntry) => JSON.stringify(value),
+  decode: (value: string) => {
+    const parsed = JSON.parse(value);
+    return UrlEntrySchema.parse(parsed);
+  }
+};
+const $urlHistoryPreload = await getPreloadforMapStore($urlHistoryMeta.key, $urlHistoryMeta.decode);
+const $urlHistory = map<Record<string, UrlEntry>>($urlHistoryPreload ?? {}); 
+$urlHistory.listen(getWriteListener($urlHistoryMeta.key, $urlHistoryMeta.encode));
 
-const $urlHistory = map<Record<string, UrlEntry>>({}); // Map of URL entries by URL
+// ========================================================================================
+
 
 export const urlHistory = {
   get: (url: string): UrlEntry | undefined => {
@@ -57,7 +68,7 @@ export const urlHistory = {
 // =====================================================================================
 
 // listener for new Urls being added
-$urlHistory.listen((history, prevHistory, changedKey) => {
+$urlHistory.listen((_history, _prevHistory, changedKey) => {
   if (changedKey) {
     console.log(`[UrlHistory] Added URL:`, changedKey);
   }

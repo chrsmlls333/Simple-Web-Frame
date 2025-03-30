@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import type { SessionData, SessionId } from '../../lib/sessionStore';
+
 import { actions } from 'astro:actions';
+import type { SessionData, SessionId } from '../../lib/schemas';
+
 import { cn, formatTimestamp, getReadableUUID } from '../../lib/styles';
+
 
 interface SessionCardProps {
   id: SessionId;
