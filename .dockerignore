@@ -3,13 +3,22 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
 # Build output
 dist
+.output
 .astro
 
-# Environment files
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Version control
+.git
+.gitignore
+
+# Configuration and environment files
 .env
 .env.*
 !.env.example
@@ -35,8 +44,3 @@ logs
 # Temporary files
 tmp
 temp
-
-# Caches
-.cache
-.npm
-.yarn
