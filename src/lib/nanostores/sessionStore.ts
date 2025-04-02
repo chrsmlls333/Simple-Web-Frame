@@ -118,10 +118,8 @@ export const sessionStore = {
       if (sessionA.isActive && !sessionB.isActive) return -1;
       if (!sessionA.isActive && sessionB.isActive) return 1;
 
-      // Then sort by last active timestamp (most recent first)
-      const timeA = sessionA.lastActiveAt || 0;
-      const timeB = sessionB.lastActiveAt || 0;
-      return timeB - timeA;
+      // Then sort by createdAt timestamp (most recent first)
+      return sessionB.createdAt - sessionA.createdAt;
     });
   },
 
