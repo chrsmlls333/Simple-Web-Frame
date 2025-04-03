@@ -1,10 +1,7 @@
 import type { APIRoute } from 'astro';
-import { SessionDataSchema, SessionIdSchema, TaskSchema, type HeartbeatData } from '@/lib/schemas';
+import { SessionIdSchema, type HeartbeatData } from '@/lib/schemas';
 import { sessionStore } from '@/lib/nanostores/sessionStore';
 import { taskQueue } from '@/lib/nanostores/taskQueue';
-import { z } from 'astro:schema';
-
-
 
 export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);

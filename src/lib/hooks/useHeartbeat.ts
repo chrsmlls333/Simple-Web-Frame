@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { type SessionData, type Task, type Config, type SessionId, heartbeatDataSchema } from '@/lib/schemas';
+import { type Task, type Config, type SessionId, heartbeatDataSchema } from '@/lib/schemas';
 import { actions } from 'astro:actions';
 
 type ConnectionStatus = 'connecting' | 'active' | 'pulse' | 'error';
 
-type HeartbeatResult = {
+interface HeartbeatResult {
   config: Config;
   connectionStatus: ConnectionStatus;
   tasks: Task[];
