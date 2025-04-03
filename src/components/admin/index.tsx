@@ -1,12 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import SessionCard from './SessionCard';
+import SessionCard, { SessionCardPlaceholder } from './SessionCard';
 
 import { UrlEntrySchema, type UrlEntry, type SessionData, type SessionId } from '../../lib/schemas';
 import { actions } from 'astro:actions';
 
+export interface AdminUIProps {
+  // startTime: number; // server start time
+  children?: React.ReactNode; // server info innerHTML
+}
 
-const AdminUI: React.FC = () => {
+const AdminUI: React.FC<AdminUIProps> = ({ children: serverInfo }) => {
   const [sessions, setSessions] = useState<[SessionId, SessionData][]>([]);
   const [urlHistory, setUrlHistory] = useState<UrlEntry[]>([]);
   const urls = useMemo(() => urlHistory.map(({ url }) => url), [urlHistory]);
@@ -91,10 +95,10 @@ const AdminUI: React.FC = () => {
   }, [urlHistory]);
 
   return (
-    <div className='flex h-screen bg-gray-100'>
+    <div className='flex h-screen w-full bg-gray-100'>
       {/* Left half - Dashboard content */}
-      <div className='w-1/2 p-6'>
-        <h1 className='mb-6 text-3xl font-bold'>Admin Dashboard</h1>
+      <div className='flex h-full w-sm flex-col justify-start gap-8 bg-gray-100 p-6'>
+        <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
         <div className='rounded-lg bg-white p-6 shadow'>
           <h2 className='mb-4 text-xl font-semibold'>System Statistics</h2>
           <p className='mb-2'>
@@ -105,10 +109,11 @@ const AdminUI: React.FC = () => {
           <p className="mb-2 italic text-red-300">Last Backup: 2023-05-10 04:30 UTC</p> */}
           {error && <p className='mb-2 text-sm text-red-600'>{error}</p>}
         </div>
+        <div className='mt-auto'>{serverInfo}</div>
       </div>
 
       {/* Right half - Session manager */}
-      <div className='w-1/2 bg-gray-200 p-6'>
+      <div className='grow bg-gray-200 p-6'>
         <div className='session-manager'>
           <h2 className='mb-4 text-2xl font-bold'>Session Manager</h2>
 
@@ -117,7 +122,7 @@ const AdminUI: React.FC = () => {
               <div className='h-12 w-12 animate-spin rounded-full border-t-2 border-b-2 border-blue-500'></div>
             </div>
           ) : (
-            <div className='space-y-4'>
+            <div className='grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3'>
               <AnimatePresence>
                 {sessions.length === 0 ? (
                   <motion.p key={'no-sessions'} className='py-8 text-center text-gray-500'>
@@ -144,19 +149,21 @@ const AdminUI: React.FC = () => {
                   ))
                 )}
               </AnimatePresence>
-              {/* new session button */}
-              <div className='flex justify-center'>
-                <button
-                  type='button'
-                  className='rounded bg-blue-400 px-4 py-2 text-sm text-white hover:bg-blue-700'
-                  onClick={() => {
-                    window.open(`/?sessionId=${crypto.randomUUID()}`, '_blank');
-                    setTimeout(refreshSessions, 1000);
-                  }}
-                >
-                  New Session
-                </button>
-              </div>
+              <SessionCardPlaceholder>
+                <div className='flex size-full min-h-20 items-end justify-start'>
+                  {/* new session button */}
+                  <button
+                    type='button'
+                    className='rounded bg-blue-400 px-4 py-2 text-sm text-white hover:bg-blue-700'
+                    onClick={() => {
+                      window.open(`/?sessionId=${crypto.randomUUID()}`, '_blank');
+                      setTimeout(refreshSessions, 1000);
+                    }}
+                  >
+                    New Session
+                  </button>
+                </div>
+              </SessionCardPlaceholder>
             </div>
           )}
         </div>

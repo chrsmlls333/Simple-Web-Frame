@@ -1,8 +1,25 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import AdminUI from '../../components/admin';
+import { gitInfo } from '../../lib/git_info';
+
+const serverInfo = {
+  astroVersion: Astro.generator,
+  nodeVersion: `Node.js ${process.version}`,
+};
+
+const branch = gitInfo.branch.charAt(0).toUpperCase() + gitInfo.branch.slice(1);
+const tagOrHash = gitInfo.tag ? `${gitInfo.tag}` : gitInfo.hash.slice(0, 6);
+
+const dev = import.meta.env.DEV ? '(Dev)' : '';
 ---
 
 <Layout>
-  <AdminUI client:load />
+  <AdminUI client:load>
+    <div class='flex gap-2 text-xs text-gray-500'>
+      <span class='px-2 py-1 bg-gray-200 rounded-full'>{serverInfo.nodeVersion}</span>
+      <span class='px-2 py-1 bg-gray-200 rounded-full'>{serverInfo.astroVersion}</span>
+      <span class='px-2 py-1 bg-gray-200 rounded-full'>{tagOrHash} {dev}</span>
+    </div>
+  </AdminUI>
 </Layout>

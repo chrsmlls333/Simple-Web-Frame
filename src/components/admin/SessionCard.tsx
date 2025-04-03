@@ -57,7 +57,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
     <div
       id={`session-${id}`}
       className={cn([
-        'mb-4 rounded-lg border-l-4 border-gray-500 bg-gray-200 p-4 shadow-md transition-colors',
+        'rounded-lg border-l-4 border-gray-500 bg-gray-200 p-4 shadow-md transition-colors',
         isActive && 'border-green-500 bg-white',
         success && 'border-green-500 bg-green-100',
         error && 'border-red-500 bg-red-100',
@@ -150,6 +150,14 @@ const SessionCard: React.FC<SessionCardProps> = ({
           )}
         </div>
       </form>
+    </div>
+  );
+};
+
+export const SessionCardPlaceholder: React.FC<React.PropsWithChildren> = ({ children }) => {
+  return (
+    <div className='rounded-lg border-l-4 border-dashed border-gray-300 bg-gray-100 p-4 shadow-sm'>
+      {children}
     </div>
   );
 };
