@@ -5,7 +5,7 @@ import { useMouseActivity } from '../useMouseActivity';
 import CopyUrl from './CopyUrl';
 
 import { type SessionId, type Config, type Task, DEFAULT_IFRAME_URL } from '@/lib/schemas';
-import { actions } from 'astro:actions';
+import { useHeartbeat } from '@/lib/hooks/useHeartbeat';
 
 
 interface SessionFrameProps {
@@ -15,6 +15,11 @@ interface SessionFrameProps {
 
 // Status options with corresponding text and class name
 const connectionStatusOptions = {
+  connecting: {
+    text: 'Connecting',
+    className: 'font-semibold text-yellow-600',
+    pulse: true,
+  },
   active: {
     text: 'Active',
     className: 'font-semibold text-green-600',
@@ -35,14 +40,15 @@ const connectionStatusOptions = {
 const iframeStatusOptions = ['loading', 'loaded', 'error'] as const;
 
 const SessionFrame: React.FC<SessionFrameProps> = ({ sessionId, config: initialConfig }) => {
-  const [config, setConfig] = useState(initialConfig);
-
   const contentFrameRef = useRef<HTMLIFrameElement>(null);
   const [iframeStatus, setIframeStatus] = useState<(typeof iframeStatusOptions)[number]>('loading');
-
-  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval>>(null);
-  const [connectionStatus, setConnectionStatus] =
-    useState<keyof typeof connectionStatusOptions>('active');
+  
+  const { 
+    config, 
+    connectionStatus, 
+    tasks, 
+    markTaskCompleted 
+  } = useHeartbeat(sessionId, initialConfig);
 
   const { isActive: isMouseMoving } = useMouseActivity();
 
@@ -73,78 +79,17 @@ const SessionFrame: React.FC<SessionFrameProps> = ({ sessionId, config: initialC
         break;
     }
 
-    // Mark a task as completed
-    const markTaskCompleted = async (taskId: string) => {
-      try {
-        await actions.markTaskCompleted.orThrow({ taskId });
-        console.log(`[TaskRunner] Marked task ${taskId} as completed`);
-      } catch (e) {
-        console.error('[TaskRunner] Failed to mark task as completed:', e);
-      }
-    };
+    // Mark task as completed
     markTaskCompleted(task.id);
   };
 
+  // Process any new tasks
   useEffect(() => {
-    const sendHeartbeat = async () => {
-      setConnectionStatus('pulse');
-
-      try {
-        const data = await actions.heartbeat.orThrow({ sessionId });
-        compareConfigToDOM(data.session);
-
-        // Process any tasks that came with the heartbeat
-        if (data.tasks && data.tasks.length > 0) {
-          console.log(`[TaskRunner] Received ${data.tasks.length} tasks`);
-          data.tasks.forEach(processTask);
-        }
-
-        setTimeout(() => setConnectionStatus('active'), 1000);
-      } catch (e) {
-        console.error('Error sending heartbeat:', e);
-        setConnectionStatus('error');
-      }
-    };
-
-    const markInactive = async () => {
-      try {
-        await actions.markInactive.orThrow({ sessionId });
-      } catch (e) {
-        console.error('Failed to mark session as inactive:', e);
-      }
-    };
-
-    const compareConfigToDOM = (newConfig: Config) => {
-      if (newConfig.iframeUrl !== config.iframeUrl) {
-        setIframeStatus('loading');
-        setConfig(newConfig);
-        console.log('[Client] Updated iframe URL to:', newConfig.iframeUrl);
-      } else {
-        console.log('[Client] No changes detected');
-      }
-    };
-
-    // Send initial heartbeat
-    sendHeartbeat();
-
-    // Set up heartbeat interval
-    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 15000);
-
-    // Handle page visibility changes
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        sendHeartbeat();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Cleanup function
-    return () => {
-      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      markInactive();
-    };
-  }, [sessionId, config.iframeUrl]);
+    if (tasks.length > 0) {
+      console.log(`[TaskRunner] Processing ${tasks.length} tasks`);
+      tasks.forEach(processTask);
+    }
+  }, [tasks]);
 
   return (
     <div className='relative flex h-screen w-full flex-col overflow-clip'>
@@ -234,13 +179,13 @@ const SessionFrame: React.FC<SessionFrameProps> = ({ sessionId, config: initialC
         </p>
         <style>{`
           @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
           }
           
           .animate-pulse {
-          animation: pulse 1s ease-in-out;
+            animation: pulse 0.1s ease-in-out;
           }
         `}</style>
       </motion.div>

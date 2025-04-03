@@ -70,6 +70,17 @@ export const taskQueue = {
     if (queue.length === 0) return;
     $queue.set(queue.filter((task) => !task.completed));
   },
+
+  subscribeToSessionsTasks: (sessionId: SessionId, callback: (tasks: Task[]) => void) => {
+    return $queue.subscribe((tasks, prevTasks) => {
+      // check only for tasks that didnt exist before, which are relevant for the session
+      const newTasksForSession = tasks.filter((task) => task.sessionId === sessionId && !prevTasks?.find((t) => t.id === task.id));
+      if (!newTasksForSession.length) return;
+
+      // get all valid tasks for the session
+      callback(taskQueue.getSessionsTasks(sessionId));
+    });
+  },
 };
 
 // ================================================================

@@ -1,6 +1,13 @@
 import { map } from 'nanostores';
 import { urlHistory } from './urlHistoryStore';
-import { SessionDataSchema, type SessionData, type SessionId, type Config, DEFAULT_IFRAME_URL, SESSION_INACTIVE_TIMEOUT } from '../schemas';
+import {
+  SessionDataSchema,
+  type SessionData,
+  type SessionId,
+  type Config,
+  DEFAULT_IFRAME_URL,
+  SESSION_INACTIVE_TIMEOUT,
+} from '../schemas';
 import { getPreloadforMapStore, getWriteListener, get } from './adaptors/redis';
 
 // =====================================================================================
@@ -12,8 +19,8 @@ const $sessionsMeta = {
   decode: (value: string) => {
     const parsed = JSON.parse(value);
     return SessionDataSchema.parse(parsed);
-  }
-}
+  },
+};
 const $sessionsPreload = await getPreloadforMapStore($sessionsMeta.key, $sessionsMeta.decode);
 const $sessions = map<Record<SessionId, SessionData>>($sessionsPreload ?? {});
 $sessions.listen(getWriteListener($sessionsMeta.key, $sessionsMeta.encode));
@@ -157,6 +164,18 @@ export const sessionStore = {
       if (!(sessionId in upstreamSessions)) {
         console.log(`[SessionStore] Deleting session ${sessionId} from local store`);
         sessionStore.delete(sessionId);
+      }
+    });
+  },
+
+  // Subscribe to changes to the URL
+  subscribeToUrlChanges: (sessionId: SessionId, callback: (session: SessionData) => void) => {
+    return $sessions.subscribe((state, prevState, changedKey) => {
+      if (changedKey === sessionId) {
+        const session = state[sessionId];
+        if (session && session.iframeUrl !== (prevState?.[sessionId]?.iframeUrl ?? null)) {
+          callback(session);
+        }
       }
     });
   },

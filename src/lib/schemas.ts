@@ -1,6 +1,5 @@
 import { z } from 'astro:schema';
 
-
 // ===============================================================================
 
 export const SESSION_INACTIVE_TIMEOUT = 30 * 1000;
@@ -39,7 +38,7 @@ export const TaskSchema = z
     completed: z.boolean().default(false), // Whether the task is completed
   })
   .and(
-    z.union([
+    z.discriminatedUnion('task',[
       z.object({
         task: z.literal("refresh"),
       }),
@@ -54,3 +53,23 @@ export const TaskSchema = z
 export type Task = z.infer<typeof TaskSchema>;
 export const TaskNameSchema = z.enum(["refresh", "fullscreen", "screenshot"]); // manual enum
 export type TaskName = z.infer<typeof TaskNameSchema>;
+
+// ===============================================================================
+
+export const heartbeatTypeSchema = z.enum(['initial', 'update']);
+export type HeartbeatType = z.infer<typeof heartbeatTypeSchema>;
+
+export const heartbeatDataSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('initial'),
+    session: SessionDataSchema,
+    timestamp: z.number(),
+  }),
+  z.object({
+    type: z.literal('update'),
+    session: SessionDataSchema,
+    tasks: z.array(TaskSchema).optional(),
+    timestamp: z.number(),
+  }),
+]);
+export type HeartbeatData = z.infer<typeof heartbeatDataSchema>;

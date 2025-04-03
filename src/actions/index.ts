@@ -52,27 +52,6 @@ export const server = {
     },
   }),
 
-  // Heartbeat endpoint to keep a session marked as active and return current config
-  heartbeat: defineAction({
-    input: z.object({
-      sessionId: SessionIdSchema,
-    }),
-    handler: ({ sessionId }) => {
-      if (!sessionStore.has(sessionId)) throw standardNotFoundActionError();
-
-      // Mark the session as active
-      sessionStore.markActive(sessionId);
-
-      // Return the current session config to allow the client to check for updates
-      const session = sessionStore.get(sessionId) as SessionData;
-
-      // Return any outstanding tasks past their scheduled time
-      const tasks = taskQueue.getSessionsTasks(sessionId, false, false);
-
-      return { session, tasks };
-    },
-  }),
-
   // Mark a session as inactive
   markInactive: defineAction({
     input: z.object({
