@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { getReadableUUID } from '../../lib/styles';
-import { useMouseActivity } from '../useMouseActivity';
+import { getReadableUUID } from '@/lib/styles';
+import { useMouseActivity } from '@/lib/hooks/useMouseActivity';
 import CopyUrl from './CopyUrl';
 
 import { type SessionId, type Config, type Task, DEFAULT_IFRAME_URL } from '@/lib/schemas';
