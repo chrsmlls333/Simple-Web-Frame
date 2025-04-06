@@ -38,28 +38,28 @@ export const TaskSchema = z
     completed: z.boolean().default(false), // Whether the task is completed
   })
   .and(
-    z.discriminatedUnion('task',[
+    z.discriminatedUnion('task', [
       z.object({
-        task: z.literal("refresh"),
+        task: z.literal('refresh'),
       }),
       z.object({
-        task: z.literal("fullscreen"), // not implemented
+        task: z.literal('fullscreen'), // not implemented
       }),
       z.object({
-        task: z.literal("screenshot"), // not implemented
+        task: z.literal('screenshot'), // not implemented
       }),
     ])
   );
 export type Task = z.infer<typeof TaskSchema>;
-export const TaskNameSchema = z.enum(["refresh", "fullscreen", "screenshot"]); // manual enum
+export const TaskNameSchema = z.enum(['refresh', 'fullscreen', 'screenshot']); // manual enum
 export type TaskName = z.infer<typeof TaskNameSchema>;
 
 // ===============================================================================
 
-export const heartbeatTypeSchema = z.enum(['initial', 'update']);
-export type HeartbeatType = z.infer<typeof heartbeatTypeSchema>;
+export const heartbeatResponseTypeSchema = z.enum(['initial', 'update']);
+export type HeartbeatResponseType = z.infer<typeof heartbeatResponseTypeSchema>;
 
-export const heartbeatDataSchema = z.discriminatedUnion('type', [
+export const heartbeatResponseDataSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('initial'),
     session: SessionDataSchema,
@@ -72,4 +72,18 @@ export const heartbeatDataSchema = z.discriminatedUnion('type', [
     timestamp: z.number(),
   }),
 ]);
-export type HeartbeatData = z.infer<typeof heartbeatDataSchema>;
+export type HeartbeatResponseData = z.infer<typeof heartbeatResponseDataSchema>;
+
+// ===============================================================================
+
+// Schema for session activity monitoring
+export const sessionActiveResponseTypeSchema = z.enum(['status']);
+export type SessionActiveResponseType = z.infer<typeof sessionActiveResponseTypeSchema>;
+
+export const sessionActiveResponseDataSchema = z.object({
+  type: z.literal('status'),
+  isActive: z.boolean(),
+  lastActiveAt: z.number(),
+  timestamp: z.number(),
+});
+export type SessionActiveResponseData = z.infer<typeof sessionActiveResponseDataSchema>;

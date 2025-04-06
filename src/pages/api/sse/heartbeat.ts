@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { SessionIdSchema, type HeartbeatData } from '@/lib/schemas';
+import { SessionIdSchema, type HeartbeatResponseData } from '@/lib/schemas';
 import { sessionStore } from '@/lib/nanostores/sessionStore';
 import { taskQueue } from '@/lib/nanostores/taskQueue';
 
@@ -29,54 +29,56 @@ export const GET: APIRoute = async ({ request }) => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
-      // Flag to track if the connection is active
       let isConnectionActive = true;
+
+      // Helper function to close the stream
+      function closeStream() {
+        isConnectionActive = false;
+        controller.close();
+        sessionStore.markInactive(sessionId);
+        console.log(`[SSE] Stream closed for session ${sessionId}`);
+      }
+
+      // Helper function to safely send data to the stream
+      const safeEnqueue = (data: any) => {
+        if (!isConnectionActive) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch (error) {
+          console.error(`[SSE] Error sending data to stream: ${error}`);
+          closeStream();
+          throw error;
+        }
+      };
 
       // Mark session as active
       sessionStore.markActive(sessionId);
 
       // Send initial data
       const session = sessionStore.get(sessionId);
-      // const tasks = taskQueue.getSessionsTasks(sessionId, false, false);
-
       if (!session) {
         console.error(`[SSE] Session ${sessionId} not found`);
-        controller.close();
+        closeStream();
         return;
       }
 
-      const initialData: HeartbeatData = {
+      const initialData: HeartbeatResponseData = {
         type: 'initial',
         session,
         timestamp: Date.now(),
       };
       controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`));
 
-      // Function to safely send data to the stream
-      const safeEnqueue = (data: any) => {
-        if (isConnectionActive) {
-          try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-          } catch (error) {
-            console.error(`[SSE] Error sending data to stream: ${error}`);
-            isConnectionActive = false;
-          }
-        }
-      };
-
       // Set up interval to send heartbeat and check for tasks
       const interval = setInterval(() => {
-        // Skip if connection is closed
         if (!isConnectionActive || request.signal.aborted) {
           clearInterval(interval);
           return;
         }
 
         try {
-          // Mark session as active
           sessionStore.markActive(sessionId);
 
-          // Get updated session and tasks
           const session = sessionStore.get(sessionId);
           const tasks = taskQueue.getSessionsTasks(sessionId, false, false);
 
@@ -86,8 +88,7 @@ export const GET: APIRoute = async ({ request }) => {
             return;
           }
 
-          // Send update
-          const updateData: HeartbeatData = {
+          const updateData: HeartbeatResponseData = {
             type: 'update',
             session,
             tasks,
@@ -96,20 +97,19 @@ export const GET: APIRoute = async ({ request }) => {
           safeEnqueue(updateData);
         } catch (error) {
           console.error(`[SSE] Error in heartbeat interval: ${error}`);
-          isConnectionActive = false;
           clearInterval(interval);
         }
       }, 15000);
 
       // Set up listeners for nanostores
-      const urlListener = sessionStore.subscribeToUrlChanges(sessionId, (session) => {
+      const unsubscribeToUrlChanges = sessionStore.subscribeToUrlChanges(sessionId, (session) => {
         if (!isConnectionActive) {
-          urlListener(); // Unsubscribe if connection is inactive
+          unsubscribeToUrlChanges();
           return;
         }
 
         try {
-          const urlData: HeartbeatData = {
+          const urlData: HeartbeatResponseData = {
             type: 'update',
             session,
             timestamp: Date.now(),
@@ -117,14 +117,13 @@ export const GET: APIRoute = async ({ request }) => {
           safeEnqueue(urlData);
         } catch (error) {
           console.error(`[SSE] Error in URL listener: ${error}`);
-          isConnectionActive = false;
-          urlListener(); // Unsubscribe
+          unsubscribeToUrlChanges();
         }
       });
 
-      const taskListener = taskQueue.subscribeToSessionsTasks(sessionId, (tasks) => {
+      const unsubscribeToSessionsTasks = taskQueue.subscribeToSessionsTasks(sessionId, (tasks) => {
         if (!isConnectionActive) {
-          taskListener(); // Unsubscribe if connection is inactive
+          unsubscribeToSessionsTasks();
           return;
         }
 
@@ -138,16 +137,16 @@ export const GET: APIRoute = async ({ request }) => {
           safeEnqueue(taskData);
         } catch (error) {
           console.error(`[SSE] Error in task listener: ${error}`);
-          isConnectionActive = false;
-          taskListener(); // Unsubscribe
+          unsubscribeToSessionsTasks();
         }
       });
 
       // Clean up when client disconnects
       request.signal.addEventListener('abort', () => {
-        isConnectionActive = false;
+        closeStream();
         clearInterval(interval);
-        urlListener(); // Unsubscribe from URL changes
+        unsubscribeToUrlChanges();
+        unsubscribeToSessionsTasks();
         console.log(`[SSE] Client disconnected for session ${sessionId}`);
       });
     },

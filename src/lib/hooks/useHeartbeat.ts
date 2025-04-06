@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import { type Task, type Config, type SessionId, heartbeatDataSchema } from '@/lib/schemas';
-import { actions } from 'astro:actions';
+import { type Task, type Config, type SessionId, heartbeatResponseDataSchema } from '@/lib/schemas';
+import { actions, getActionPath } from 'astro:actions';
 
 type ConnectionStatus = 'connecting' | 'active' | 'pulse' | 'error';
 
-interface HeartbeatResult {
+interface HeartbeatHookResult {
   config: Config;
   connectionStatus: ConnectionStatus;
   tasks: Task[];
   isConnected: boolean;
   markTaskCompleted: (taskId: string) => Promise<void>;
   markInactive: () => Promise<void>;
-};
+}
 
-export function useHeartbeat(sessionId: SessionId, initialConfig: Config): HeartbeatResult {
+export function useHeartbeat(sessionId: SessionId, initialConfig: Config): HeartbeatHookResult {
   const [sessionConfig, updateSessionConfig] = useState<Config>(initialConfig);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -23,17 +23,45 @@ export function useHeartbeat(sessionId: SessionId, initialConfig: Config): Heart
   // Cleanup function for the event source
   const cleanupEventSource = () => {
     if (eventSourceRef.current) {
+      console.log('[SSE] Closing EventSource connection');
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
   };
 
+  // Mark session as inactive
+  const markInactive = async (useBeacon = false) => {
+    if (useBeacon && navigator.sendBeacon) {
+      const url = getActionPath(actions.markInactive);
+      const data = new Blob([JSON.stringify({ sessionId })], { type: 'application/json' });
+      navigator.sendBeacon(url, data);
+      console.log('[Heartbeat] Marked inactive using Beacon API');
+      return;
+    }
+
+    try {
+      await actions.markInactive.orThrow({ sessionId });
+      console.log('[Heartbeat] Session marked as inactive');
+    } catch (e) {
+      console.error('[Heartbeat] Failed to mark session as inactive:', e);
+    }
+  };
+
+  // Function to mark a task as completed
+  const markTaskCompleted = async (taskId: string) => {
+    try {
+      await actions.markTaskCompleted.orThrow({ taskId });
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+    } catch (e) {
+      console.error('[Heartbeat] Failed to mark task as completed:', e);
+    }
+  };
+
+  // Effect to handle EventSource initialization and cleanup
   useEffect(() => {
-    // Initialize the event source
     const eventSource = new EventSource(`/api/sse/heartbeat?sessionId=${sessionId}`);
     eventSourceRef.current = eventSource;
 
-    // Set up event handlers
     eventSource.onopen = () => {
       console.log('[SSE] Connection opened');
       setConnectionStatus('active');
@@ -45,26 +73,16 @@ export function useHeartbeat(sessionId: SessionId, initialConfig: Config): Heart
         const _data = JSON.parse(event.data);
         console.log('[SSE] Received data:', _data);
 
-        // Validate the data structure
-        const data = heartbeatDataSchema.parse(_data);
+        const data = heartbeatResponseDataSchema.parse(_data);
 
-        // Update connection status to show a pulse
         setConnectionStatus('pulse');
         setTimeout(() => setConnectionStatus('active'), 1000);
 
-        // Update config if it has changed
         if (data.session) {
-          const newConfig = {
-            iframeUrl: data.session.iframeUrl,
-          };
-          
-          // Only update if config actually changed
-          // if (newConfig.iframeUrl !== sessionConfig.iframeUrl) {
-            updateSessionConfig(newConfig);
-          // }
+          const newConfig = { iframeUrl: data.session.iframeUrl };
+          updateSessionConfig(newConfig);
         }
 
-        // Update tasks
         if ('tasks' in data && data.tasks) {
           setTasks(data.tasks);
         }
@@ -78,58 +96,43 @@ export function useHeartbeat(sessionId: SessionId, initialConfig: Config): Heart
       console.error('[SSE] Error:', error);
       setConnectionStatus('error');
       setIsConnected(false);
-      
-      // Try to reconnect after a delay
+
       setTimeout(() => {
         cleanupEventSource();
-        // The browser will automatically try to reconnect
       }, 5000);
     };
 
-    // Clean up on unmount
+    const handleBeforeUnload = () => {
+      cleanupEventSource();
+      markInactive(true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+      markInactive();
       cleanupEventSource();
     };
   }, [sessionId]);
 
-  // Handle visibility changes to maintain connection
+  // Effect to handle visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Reconnect if the tab becomes visible again and we're not connected
-        if (!isConnected) {
-          cleanupEventSource();
-          eventSourceRef.current = new EventSource(`/api/sse/heartbeat?sessionId=${sessionId}`);
-        }
+      if (document.visibilityState === 'visible' && !isConnected) {
+        cleanupEventSource();
+        eventSourceRef.current = new EventSource(`/api/sse/heartbeat?sessionId=${sessionId}`);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [sessionId, isConnected]);
-
-  // Function to mark a task as completed
-  const markTaskCompleted = async (taskId: string) => {
-    try {
-      await actions.markTaskCompleted.orThrow({ taskId });
-      // Update local tasks list to remove the completed task
-      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
-    } catch (e) {
-      console.error('[Heartbeat] Failed to mark task as completed:', e);
-    }
-  };
-
-  // Function to mark session as inactive
-  const markInactive = async () => {
-    try {
-      await actions.markInactive.orThrow({ sessionId });
-    } catch (e) {
-      console.error('[Heartbeat] Failed to mark session as inactive:', e);
-    }
-  };
 
   return {
     config: sessionConfig,

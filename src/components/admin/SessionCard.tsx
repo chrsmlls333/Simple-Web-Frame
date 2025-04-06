@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 import { actions } from 'astro:actions';
-import type { SessionData, SessionId } from '../../lib/schemas';
+import type { SessionData, SessionId } from '@/lib/schemas';
 
-import { cn, formatTimestamp, getReadableUUID } from '../../lib/styles';
-
+import { cn, getReadableUUID } from '@/lib/styles';
+import { useSessionActivity } from '@/lib/hooks/useSessionActivity';
 
 interface SessionCardProps {
   id: SessionId;
@@ -21,10 +21,11 @@ const SessionCard: React.FC<SessionCardProps> = ({
   onSubmitUrl,
   onDelete,
 }) => {
-  const [isActive, setIsActive] = useState(session.isActive);
-  const [lastActiveAt, setLastActiveAt] = useState(formatTimestamp(session.lastActiveAt));
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // Use the session activity hook instead of manually checking
+  const { isActive, lastActiveAtFormatted } = useSessionActivity(id);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,20 +39,6 @@ const SessionCard: React.FC<SessionCardProps> = ({
       setError(`Failed to update session: ${e?.message}`);
     }
   };
-
-  // check if the session is active every 15 seconds
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const { data, error } = await actions.checkActive({ sessionId: id });
-      if (error) {
-        setError('Failed to check session status');
-        return;
-      }
-      setIsActive(data.isActive);
-      setLastActiveAt(formatTimestamp(data.lastActiveAt));
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [id]);
 
   return (
     <div
@@ -84,7 +71,7 @@ const SessionCard: React.FC<SessionCardProps> = ({
         </div>
         <div className='text-right text-sm text-gray-400'>
           {/* <div>Last Active:</div> */}
-          <div>{lastActiveAt}</div>
+          <div>{lastActiveAtFormatted}</div>
         </div>
       </div>
 

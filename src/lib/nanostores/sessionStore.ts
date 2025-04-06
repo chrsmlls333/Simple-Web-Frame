@@ -179,6 +179,26 @@ export const sessionStore = {
       }
     });
   },
+
+  // Subscribe to changes in session activity status
+  subscribeToActivityChanges: (sessionId: SessionId, callback: (session: SessionData) => void) => {
+    return $sessions.subscribe((state, prevState, changedKey) => {
+      if (changedKey === sessionId) {
+        const session = state[sessionId];
+        const prevSession = prevState?.[sessionId];
+
+        // Call callback if isActive changed or lastActiveAt changed
+        if (
+          session &&
+          prevSession &&
+          (session.isActive !== prevSession.isActive ||
+            session.lastActiveAt !== prevSession.lastActiveAt)
+        ) {
+          callback(session);
+        }
+      }
+    });
+  },
 };
 
 // =====================================================================================
