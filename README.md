@@ -8,7 +8,7 @@ Simple Web Frame allows you to:
 
 - Create and manage multiple display sessions from a central admin panel
 - Control web content displayed on any connected screen
-- Update content URLs remotely in real-time
+- Update content URLs and refresh remotely in real-time
 - Maintain a basic auto-suggest history of previously displayed content
 - Persist data across server restarts with Redis
 
